@@ -1,9 +1,9 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { StyleSheet, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
 import { Text, View } from '@/components/Themed';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 
 type Pet = {
   id: string;
@@ -36,9 +36,11 @@ export default function PetDashboard() {
     fetchPets().then(() => setRefreshing(false));
   }, [session]);
 
-  useEffect(() => {
-    fetchPets();
-  }, [session]);
+  useFocusEffect(
+    useCallback(() => {
+      fetchPets();
+    }, [session])
+  );
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -64,12 +66,14 @@ export default function PetDashboard() {
           </View>
         }
         renderItem={({ item }) => (
-          <View style={styles.petCard}>
-            <Text style={styles.petName}>{item.name}</Text>
-            <Text style={styles.petDetails}>
-              {item.species || 'Unknown Species'} {item.breed ? `• ${item.breed}` : ''}
-            </Text>
-          </View>
+          <TouchableOpacity onPress={() => router.push(`/pet/${item.id}`)}>
+            <View style={styles.petCard}>
+              <Text style={styles.petName}>{item.name}</Text>
+              <Text style={styles.petDetails}>
+                {item.species || 'Unknown Species'} {item.breed ? `• ${item.breed}` : ''}
+              </Text>
+            </View>
+          </TouchableOpacity>
         )}
       />
 

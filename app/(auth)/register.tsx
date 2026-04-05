@@ -3,28 +3,35 @@ import { StyleSheet, View, Text, TextInput, TouchableOpacity, Alert, ScrollView 
 import { supabase } from '../../lib/supabase';
 import { useRouter, Link } from 'expo-router';
 
-export default function Login() {
+export default function Register() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  async function signInWithEmail() {
+  async function signUpWithEmail() {
+    if (password !== confirmPassword) {
+      Alert.alert('Error', 'Passwords do not match');
+      return;
+    }
+
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data: { session }, error } = await supabase.auth.signUp({
       email: email.trim(),
       password: password,
     });
 
     if (error) Alert.alert(error.message);
+    else if (!session) Alert.alert('Success', 'Please check your inbox for email verification!');
     else router.replace('/(tabs)/');
     setLoading(false);
   }
 
   return (
     <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-      <Text style={styles.title}>Welcome Back</Text>
-      <Text style={styles.subtitle}>Sign in to Pet Life Manager</Text>
+      <Text style={styles.title}>Create Account</Text>
+      <Text style={styles.subtitle}>Sign up to Pet Life Manager</Text>
       
       <View style={styles.inputContainer}>
         <Text style={styles.label}>Email</Text>
@@ -49,18 +56,30 @@ export default function Login() {
           autoCapitalize="none"
         />
       </View>
+
+      <View style={styles.inputContainer}>
+        <Text style={styles.label}>Confirm Password</Text>
+        <TextInput
+          style={styles.input}
+          onChangeText={(text) => setConfirmPassword(text)}
+          value={confirmPassword}
+          secureTextEntry={true}
+          placeholder="Repeat Password"
+          autoCapitalize="none"
+        />
+      </View>
       
       <View style={styles.buttonContainer}>
-        <TouchableOpacity style={styles.button} disabled={loading} onPress={signInWithEmail}>
-          <Text style={styles.buttonText}>{loading ? 'Signing In...' : 'Sign In'}</Text>
+        <TouchableOpacity style={styles.button} disabled={loading} onPress={signUpWithEmail}>
+          <Text style={styles.buttonText}>{loading ? 'Creating...' : 'Sign Up'}</Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.footer}>
-        <Text style={styles.footerText}>Don't have an account? </Text>
-        <Link href="/(auth)/register" asChild>
+        <Text style={styles.footerText}>Already have an account? </Text>
+        <Link href="/(auth)/login" asChild>
           <TouchableOpacity>
-            <Text style={styles.footerLink}>Sign Up</Text>
+            <Text style={styles.footerLink}>Sign In</Text>
           </TouchableOpacity>
         </Link>
       </View>
