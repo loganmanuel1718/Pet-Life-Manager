@@ -1,10 +1,14 @@
 import { useState, useEffect } from 'react';
-import { StyleSheet, TextInput, TouchableOpacity, View, Alert, ScrollView, Platform } from 'react-native';
+import { StyleSheet, TextInput, TouchableOpacity, View, Alert, ScrollView, Platform, Image, ActivityIndicator } from 'react-native';
 import { Text } from '@/components/Themed';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { FontAwesome5 } from '@expo/vector-icons';
+
+import * as ImagePicker from 'expo-image-picker';
+import { decode } from 'base64-arraybuffer';
 
 const ALL_VACCINES = [
   'Rabies',
@@ -27,6 +31,7 @@ export default function ModalScreen() {
   const [breed, setBreed] = useState('');
   const [allergies, setAllergies] = useState('');
   const [notes, setNotes] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState('');
   
   const [birthdate, setBirthdate] = useState<Date | null>(null);
   const [adoptionDate, setAdoptionDate] = useState<Date | null>(null);
@@ -36,6 +41,7 @@ export default function ModalScreen() {
   const [selectedVaccines, setSelectedVaccines] = useState<string[]>([]);
   
   const [loading, setLoading] = useState(false);
+  const [imageUploading, setImageUploading] = useState(false);
   const [fetching, setFetching] = useState(isEditing);
   
   const { session } = useAuth();
@@ -51,6 +57,7 @@ export default function ModalScreen() {
           setBreed(data.breed || '');
           setAllergies(data.allergies || '');
           setNotes(data.notes || '');
+          setAvatarUrl(data.avatar_url || '');
           setSelectedVaccines(data.vaccines || []);
           if (data.birthdate) setBirthdate(new Date(data.birthdate));
           if (data.adoption_date) setAdoptionDate(new Date(data.adoption_date));
@@ -67,6 +74,49 @@ export default function ModalScreen() {
     setSelectedVaccines(prev => 
       prev.includes(vaccine) ? prev.filter(v => v !== vaccine) : [...prev, vaccine]
     );
+  };
+
+  const pickImage = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+        base64: true,
+      });
+
+      if (!result.canceled && result.assets[0] && session?.user?.id) {
+        setImageUploading(true);
+        const image = result.assets[0];
+        
+        // Use native base64 from image picker directly
+        const base64Str = image.base64;
+        if (!base64Str) throw new Error("Could not extract image base64");
+        
+        // Generate a clean path inside the "avatars" bucket
+        const filePath = `${session.user.id}/${Date.now()}.jpg`;
+        const contentType = 'image/jpeg';
+        
+        // Upload ArrayBuffer to Supabase
+        const { data, error } = await supabase.storage
+          .from('avatars')
+          .upload(filePath, decode(base64Str), { contentType });
+
+        if (error) {
+          throw error;
+        }
+
+        // Retrieve public URL securely
+        const { data: publicUrlData } = supabase.storage.from('avatars').getPublicUrl(filePath);
+        setAvatarUrl(publicUrlData.publicUrl);
+        
+        setImageUploading(false);
+      }
+    } catch (err: any) {
+      setImageUploading(false);
+      Alert.alert('Error uploading image', err.message);
+    }
   };
 
   const handleSavePet = async () => {
@@ -89,6 +139,7 @@ export default function ModalScreen() {
         allergies: allergies.trim(),
         notes: notes.trim(),
         vaccines: selectedVaccines,
+        avatar_url: avatarUrl || null,
         birthdate: birthdate ? birthdate.toISOString().split('T')[0] : null,
         adoption_date: adoptionDate ? adoptionDate.toISOString().split('T')[0] : null,
       };
@@ -118,7 +169,7 @@ export default function ModalScreen() {
   if (fetching) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <Text>Loading pet data...</Text>
+        <ActivityIndicator size="large" color="#007AFF" />
       </View>
     );
   }
@@ -129,6 +180,25 @@ export default function ModalScreen() {
       keyboardShouldPersistTaps="handled"
     >
       <Text style={styles.title}>{isEditing ? 'Edit Pet Profile' : 'Add a New Pet'}</Text>
+
+      {/* Avatar Picker Section */}
+      <View style={styles.avatarSection}>
+        <TouchableOpacity style={styles.avatarCircle} onPress={pickImage} disabled={imageUploading}>
+          {imageUploading ? (
+            <ActivityIndicator color="#007AFF" />
+          ) : avatarUrl ? (
+            <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
+          ) : (
+            <View style={styles.avatarPlaceholder}>
+              <FontAwesome5 name="paw" size={40} color="#999" />
+              <View style={styles.avatarEditBadge}>
+                <FontAwesome5 name="camera" size={12} color="#fff" />
+              </View>
+            </View>
+          )}
+        </TouchableOpacity>
+        <Text style={styles.avatarHint}>Tap to change photo</Text>
+      </View>
       
       <View style={styles.inputContainer}>
         <Text style={styles.label}>Name *</Text>
@@ -261,8 +331,52 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: '700',
-    marginBottom: 32,
+    marginBottom: 24,
     color: '#333',
+  },
+  avatarSection: {
+    alignItems: 'center',
+    marginBottom: 32,
+  },
+  avatarCircle: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#F0F0F0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#EAEAEA',
+    overflow: 'hidden',
+  },
+  avatarPlaceholder: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  avatarEditBadge: {
+    position: 'absolute',
+    bottom: 8,
+    right: 28,
+    backgroundColor: '#007AFF',
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  avatarHint: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#666',
   },
   row: {
     flexDirection: 'row',

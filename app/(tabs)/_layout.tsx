@@ -34,6 +34,14 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <TabBarIcon name="paw" color={color} />,
         }}
       />
+      <Tabs.Screen
+        name="feeding"
+        options={{
+          title: 'Menu',
+          headerShown: false,
+          tabBarIcon: ({ color }) => <TabBarIcon name="calendar-check-o" color={color} />,
+        }}
+      />
     </Tabs>
   );
 }
