@@ -6,6 +6,13 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { FontAwesome5 } from '@expo/vector-icons';
 
+const SEVERITY_LEVELS = [
+  { level: 0, label: 'None', color: '#34C759' }, // Green
+  { level: 1, label: 'Mild', color: '#FFCC00' }, // Yellow
+  { level: 2, label: 'Moderate', color: '#FF9500' }, // Orange
+  { level: 3, label: 'Severe', color: '#FF3B30' }, // Red
+];
+
 export default function PetHealthScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
@@ -13,6 +20,7 @@ export default function PetHealthScreen() {
   
   const [pet, setPet] = useState<any>(null);
   const [weightLogs, setWeightLogs] = useState<any[]>([]);
+  const [allergyLogs, setAllergyLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchHealthData = async () => {
@@ -21,15 +29,28 @@ export default function PetHealthScreen() {
     const { data: petData } = await supabase.from('pets').select('name').eq('id', id).single();
     if (petData) setPet(petData);
 
-    const { data: logData, error } = await supabase
+    // Fetch Weights
+    const { data: wLogData, error: wError } = await supabase
       .from('pet_weight_logs')
       .select('*')
       .eq('pet_id', id)
-      .order('date', { ascending: true }); // Chronological order
+      .order('date', { ascending: true }); // Chronological for graph
 
-    if (!error && logData) {
-      setWeightLogs(logData);
+    if (!wError && wLogData) {
+      setWeightLogs(wLogData);
     }
+
+    // Fetch Allergies
+    const { data: aLogData, error: aError } = await supabase
+      .from('pet_allergy_logs')
+      .select('*')
+      .eq('pet_id', id)
+      .order('date', { ascending: false }); // Reverse chronological for list
+
+    if (!aError && aLogData) {
+      setAllergyLogs(aLogData);
+    }
+
     setLoading(false);
   };
 
@@ -50,6 +71,21 @@ export default function PetHealthScreen() {
     ]);
   };
 
+  const handleDeleteAllergyLog = (logId: string) => {
+    Alert.alert("Remove Entry", "Remove this allergy symptom diary entry?", [
+      { text: "Cancel", style: "cancel" },
+      { 
+        text: "Remove", 
+        style: "destructive", 
+        onPress: async () => {
+          const { error } = await supabase.from('pet_allergy_logs').delete().eq('id', logId);
+          if (error) Alert.alert('Error', error.message);
+          else fetchHealthData();
+        }
+      }
+    ]);
+  };
+
   if (loading) {
     return (
       <View style={[styles.container, styles.centered]}>
@@ -59,10 +95,9 @@ export default function PetHealthScreen() {
   }
 
   // Pure Native CSS Bar Graph logic 
-  // Add 10% headroom to the max value so the tallest bar doesn't touch the ceiling
   const absoluteMax = weightLogs.length > 0 ? Math.max(...weightLogs.map(l => l.weight)) : 10;
   const maxRenderWeight = absoluteMax * 1.15; 
-  const displayLogs = weightLogs.slice(-8); // Show up to last 8 logs in chart
+  const displayLogs = weightLogs.slice(-8); 
 
   return (
     <>
@@ -74,8 +109,8 @@ export default function PetHealthScreen() {
       />
       <ScrollView contentContainerStyle={styles.container}>
         
+        {/* WEIGHT ENGINE */}
         <Text style={styles.title}>Weight Tracking</Text>
-        
         <View style={styles.card}>
           {weightLogs.length === 0 ? (
             <View style={styles.emptyChart}>
@@ -100,7 +135,6 @@ export default function PetHealthScreen() {
                   return (
                     <View key={log.id} style={styles.chartColumn}>
                       <View style={styles.chartBarWrapper}>
-                        {/* Dynamic Height Bar */}
                         <View style={[
                           styles.chartBar, 
                           { height: `${heightPct}%` },
@@ -128,14 +162,13 @@ export default function PetHealthScreen() {
           </Link>
         </View>
 
-        {/* Historical List */}
         {weightLogs.length > 0 && (
           <View style={styles.listCard}>
-            <Text style={styles.listTitle}>History</Text>
-            {weightLogs.slice().reverse().map(log => {
+            <Text style={styles.listTitle}>Weight History</Text>
+            {weightLogs.slice().reverse().map((log, i) => {
                const d = new Date(log.date);
                return (
-                 <View key={log.id} style={styles.historyRow}>
+                 <View key={log.id} style={[styles.historyRow, i === weightLogs.length - 1 && { borderBottomWidth: 0 }]}>
                     <View>
                        <Text style={styles.historyWeight}>{log.weight} kg</Text>
                        <Text style={styles.historyDate}>{d.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}</Text>
@@ -149,6 +182,96 @@ export default function PetHealthScreen() {
             })}
           </View>
         )}
+
+        {/* ALLERGY ENGINE */}
+        <Text style={[styles.title, { marginTop: 12 }]}>Allergy Diary</Text>
+        <View style={styles.card}>
+          {allergyLogs.length === 0 ? (
+            <View style={styles.emptyChart}>
+               <FontAwesome5 name="allergies" size={32} color="#D1D1D6" style={{marginBottom: 12}} />
+               <Text style={styles.emptyText}>No allergy reactions tracked.</Text>
+               <Text style={styles.emptySubText}>Log an episode to establish a baseline.</Text>
+            </View>
+          ) : (
+            <>
+              <View style={styles.chartHeader}>
+                <Text style={styles.chartHeaderLabel}>Latest Reaction</Text>
+                {(() => {
+                  const latestLog = allergyLogs[0];
+                  const latestMeta = SEVERITY_LEVELS.find(s => s.level === latestLog.severity) || SEVERITY_LEVELS[0];
+                  return (
+                    <Text style={[styles.chartHeaderValue, { fontSize: 32, color: latestMeta.color, marginTop: 4 }]}>
+                      {latestMeta.label}
+                    </Text>
+                  )
+                })()}
+              </View>
+
+              {/* Allergy CSS Bar Chart */}
+              <View style={[styles.chartContainer, { height: 140 }]}>
+                {allergyLogs.slice(0, 8).reverse().map((log, index, arr) => {
+                  const severityMeta = SEVERITY_LEVELS.find(s => s.level === log.severity) || SEVERITY_LEVELS[0];
+                  // Calculate height visually based on 0-3 scale. (0 = 10%, 1=40%, 2=70%, 3=100%)
+                  const heightPct = log.severity === 0 ? 8 : (log.severity / 3) * 100;
+                  const isLatest = index === arr.length - 1;
+                  const dateObj = new Date(log.date);
+
+                  return (
+                    <View key={`chart-${log.id}`} style={styles.chartColumn}>
+                      <View style={styles.chartBarWrapper}>
+                        <View style={[
+                          styles.chartBar, 
+                          { height: `${heightPct}%`, backgroundColor: severityMeta.color, opacity: isLatest ? 1 : 0.6 }
+                        ]} />
+                      </View>
+                      <Text style={[styles.chartDateLabel, isLatest && styles.chartDateLabelLatest]}>
+                         {dateObj.getMonth() + 1}/{dateObj.getDate()}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+
+              <View style={{ marginBottom: 16 }}>
+                 {allergyLogs.map((log, i) => {
+                    const severityMeta = SEVERITY_LEVELS.find(s => s.level === log.severity) || SEVERITY_LEVELS[0];
+                    const d = new Date(log.date);
+                    
+                    return (
+                       <View key={log.id} style={[styles.historyRow, i === allergyLogs.length - 1 && { borderBottomWidth: 0 }]}>
+                          <View style={{ flexDirection: 'row', flex: 1, paddingRight: 10 }}>
+                             <View style={[styles.colorDot, { backgroundColor: severityMeta.color }]} />
+                             <View style={{ flex: 1 }}>
+                                <Text style={[styles.historyWeight, { color: severityMeta.color }]}>
+                                  {severityMeta.label}
+                                </Text>
+                                <Text style={styles.historyDate}>{d.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}</Text>
+                                {(log.symptoms || log.notes) && (
+                                   <Text style={styles.historyNotes}>
+                                      {log.symptoms ? `Symptoms: ${log.symptoms}` : ''}
+                                      {log.symptoms && log.notes ? '\n' : ''}
+                                      {log.notes ? `Notes: ${log.notes}` : ''}
+                                   </Text>
+                                )}
+                             </View>
+                          </View>
+                          <TouchableOpacity onPress={() => handleDeleteAllergyLog(log.id)} style={{ padding: 8 }}>
+                             <FontAwesome5 name="trash" size={14} color="#FF3B30" />
+                          </TouchableOpacity>
+                       </View>
+                    )
+                 })}
+              </View>
+            </>
+          )}
+
+          <Link href={`/health/log-allergy-modal?pet_id=${id}`} asChild>
+            <TouchableOpacity style={styles.logButton}>
+              <FontAwesome5 name="plus" size={12} color="#fff" style={{marginRight: 8}} />
+              <Text style={styles.logButtonText}>Log Reaction</Text>
+            </TouchableOpacity>
+          </Link>
+        </View>
 
       </ScrollView>
     </>
@@ -287,6 +410,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.04,
     shadowRadius: 15,
+    marginBottom: 24,
   },
   listTitle: {
     fontSize: 18,
@@ -316,6 +440,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#999',
     marginTop: 4,
-    fontStyle: 'italic',
+  },
+  colorDot: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    marginRight: 12,
+    marginTop: 4,
   },
 });

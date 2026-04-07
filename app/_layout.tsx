@@ -76,6 +76,7 @@ function ProtectedLayout() {
         <Stack.Screen name="quick-task-modal" options={{ presentation: 'modal', title: 'Quick Task' }} />
         <Stack.Screen name="health/[id]" options={{ presentation: 'card' }} />
         <Stack.Screen name="health/log-weight-modal" options={{ presentation: 'modal', title: 'Log Weight' }} />
+        <Stack.Screen name="health/log-allergy-modal" options={{ presentation: 'modal', title: 'Daily Allergy Log' }} />
       </Stack>
     </ThemeProvider>
   );

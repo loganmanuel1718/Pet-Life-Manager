@@ -48,25 +48,43 @@ export default function TasksTab() {
     const { data: groomingSched } = await supabase.from('grooming_schedules').select('*, pets(name, avatar_url)');
     const { data: groomingLogs } = await supabase.from('grooming_logs').select('*').eq('date', localDateString);
 
-    const { data: quickTasks } = await supabase.from('quick_tasks').select('*, pets(name, avatar_url)').eq('due_date', localDateString);
+    const { data: rawQuickTasks } = await supabase
+      .from('quick_tasks')
+      .select('*, pets(name, avatar_url)')
+      .or(`due_date.eq.${localDateString},recurrence.neq.none`);
+
+    const { data: quickLogs } = await supabase.from('quick_task_logs').select('*').eq('date', localDateString);
 
     let combinedTasks: any[] = [];
 
     // Map Food
-    if (feedingSched) combinedTasks = combinedTasks.concat(feedingSched.map(s => ({ ...s, taskType: 'Food', is_completed: feedingLogs?.some(l => l.schedule_id === s.id) || false })));
+    if (feedingSched) combinedTasks = combinedTasks.concat(feedingSched.map((s: any) => ({ ...s, taskType: 'Food', is_completed: feedingLogs?.some((l: any) => l.schedule_id === s.id) || false })));
     // Map Medicine
-    if (medicineSched) combinedTasks = combinedTasks.concat(medicineSched.map(s => ({ ...s, taskType: 'Medicine', is_completed: medicineLogs?.some(l => l.schedule_id === s.id) || false })));
+    if (medicineSched) combinedTasks = combinedTasks.concat(medicineSched.map((s: any) => ({ ...s, taskType: 'Medicine', is_completed: medicineLogs?.some((l: any) => l.schedule_id === s.id) || false })));
     // Map Grooming
-    if (groomingSched) combinedTasks = combinedTasks.concat(groomingSched.map(s => ({ ...s, taskType: 'Grooming', is_completed: groomingLogs?.some(l => l.schedule_id === s.id) || false })));
+    if (groomingSched) combinedTasks = combinedTasks.concat(groomingSched.map((s: any) => ({ ...s, taskType: 'Grooming', is_completed: groomingLogs?.some((l: any) => l.schedule_id === s.id) || false })));
     
     // Map Quick Tasks
-    if (quickTasks) {
-      combinedTasks = combinedTasks.concat(quickTasks.map(t => ({
-        ...t,
-        time: t.due_time, // Standardize sorting key
-        taskType: 'QuickTask',
-        is_completed: t.is_completed // Pulled straight from the object
-      })));
+    if (rawQuickTasks) {
+      const parsedQuick = rawQuickTasks.filter((t: any) => {
+          const startDate = new Date(t.due_date);
+          const current = new Date(localDateString);
+          
+          if (current < startDate && current.toDateString() !== startDate.toDateString()) return false;
+
+          if (t.recurrence === 'none' || !t.recurrence) return t.due_date === localDateString;
+          if (t.recurrence === 'daily') return true;
+          if (t.recurrence === 'weekly') return current.getUTCDay() === startDate.getUTCDay();
+          if (t.recurrence === 'monthly') return current.getUTCDate() === startDate.getUTCDate();
+          return false;
+      }).map((t: any) => {
+          if (t.recurrence === 'none' || !t.recurrence) {
+             return { ...t, time: t.due_time, taskType: 'QuickTask', is_completed: t.is_completed };
+          } else {
+             return { ...t, time: t.due_time, taskType: 'QuickTask', is_completed: quickLogs?.some((l: any) => l.task_id === t.id) || false };
+          }
+      });
+      combinedTasks = combinedTasks.concat(parsedQuick);
     }
 
     // Sort chronologically
@@ -87,8 +105,16 @@ export default function TasksTab() {
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, is_completed: true } : t));
 
     if (taskType === 'QuickTask') {
-       const { error } = await supabase.from('quick_tasks').update({ is_completed: true }).eq('id', taskId);
-       if (error) { fetchTasks(); console.error(error); }
+       const task = tasks.find(t => t.id === taskId);
+       if (task?.recurrence === 'none' || !task?.recurrence) {
+         const { error } = await supabase.from('quick_tasks').update({ is_completed: true }).eq('id', taskId);
+         if (error) { fetchTasks(); console.error(error); }
+       } else {
+         const localDateString = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`;
+         const payload = { task_id: taskId, user_id: session.user.id, date: localDateString };
+         const { error } = await supabase.from('quick_task_logs').insert([payload]);
+         if (error) { fetchTasks(); console.error(error); }
+       }
        return;
     }
 
@@ -108,8 +134,15 @@ export default function TasksTab() {
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, is_completed: false } : t));
 
     if (taskType === 'QuickTask') {
-       const { error } = await supabase.from('quick_tasks').update({ is_completed: false }).eq('id', taskId);
-       if (error) fetchTasks();
+       const task = tasks.find(t => t.id === taskId);
+       if (task?.recurrence === 'none' || !task?.recurrence) {
+         const { error } = await supabase.from('quick_tasks').update({ is_completed: false }).eq('id', taskId);
+         if (error) fetchTasks();
+       } else {
+         const localDateString = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`;
+         const { error } = await supabase.from('quick_task_logs').delete().eq('task_id', taskId).eq('date', localDateString);
+         if (error) fetchTasks();
+       }
        return;
     }
 

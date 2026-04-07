@@ -13,6 +13,7 @@ export default function QuickTaskModalScreen() {
   
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('Misc'); // 'Grooming', 'Medical', 'Misc'
+  const [recurrence, setRecurrence] = useState('none'); // 'none', 'daily', 'weekly', 'monthly'
   const [datetime, setDatetime] = useState<Date>(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
@@ -54,7 +55,8 @@ export default function QuickTaskModalScreen() {
         title: title.trim(),
         category,
         due_date: dateString,
-        due_time: timeString
+        due_time: timeString,
+        recurrence
       };
 
       const { error } = await supabase.from('quick_tasks').insert([payload]);
@@ -122,6 +124,23 @@ export default function QuickTaskModalScreen() {
                  onPress={() => setCategory(cat)}
                >
                  <Text style={[styles.catPillText, category === cat && styles.catPillTextActive]}>{cat}</Text>
+               </TouchableOpacity>
+            ))}
+        </View>
+      </View>
+
+      <View style={styles.inputContainer}>
+        <Text style={styles.label}>Frequency</Text>
+        <View style={styles.categoryRow}>
+            {['none', 'daily', 'weekly', 'monthly'].map(rec => (
+               <TouchableOpacity 
+                 key={rec} 
+                 style={[styles.catPill, recurrence === rec && styles.catPillActive]}
+                 onPress={() => setRecurrence(rec)}
+               >
+                 <Text style={[styles.catPillText, recurrence === rec && styles.catPillTextActive]}>
+                   {rec.charAt(0).toUpperCase() + rec.slice(1)}
+                 </Text>
                </TouchableOpacity>
             ))}
         </View>
