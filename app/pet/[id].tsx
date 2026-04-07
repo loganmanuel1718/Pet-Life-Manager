@@ -92,6 +92,14 @@ export default function PetDetailScreen() {
     return null;
   }
 
+  const formatTime = (timeString: string) => {
+    const [h, m] = timeString.split(':');
+    const hours = parseInt(h, 10);
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    const hours12 = hours % 12 || 12;
+    return `${hours12}:${m} ${ampm}`;
+  };
+
   return (
     <>
       <Stack.Screen 
@@ -173,7 +181,7 @@ export default function PetDetailScreen() {
               <View key={sched.id} style={styles.scheduleRow}>
                 <View>
                   <Text style={styles.scheduleTime}>
-                    {new Date(`1970-01-01T${sched.time}Z`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {formatTime(sched.time)}
                   </Text>
                   <Text style={styles.scheduleDetails}>{sched.amount} • {sched.food_type}</Text>
                 </View>
@@ -352,6 +360,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#F0F0F0',
+    width: '100%',
   },
   scheduleTime: {
     fontSize: 18,

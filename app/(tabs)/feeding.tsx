@@ -68,6 +68,14 @@ export default function FeedingTab() {
     }
   };
 
+  const formatTime = (timeString: string) => {
+    const [h, m] = timeString.split(':');
+    const hours = parseInt(h, 10);
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    const hours12 = hours % 12 || 12;
+    return `${hours12}:${m} ${ampm}`;
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -98,7 +106,7 @@ export default function FeedingTab() {
                 )}
                 <View>
                   <Text style={[styles.schedTime, sched.is_fed && styles.textMuted]}>
-                    {new Date(`1970-01-01T${sched.time}Z`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {formatTime(sched.time)}
                   </Text>
                   <Text style={[styles.schedDetails, sched.is_fed && styles.textMuted]}>
                     {sched.pets?.name} • {sched.amount} {sched.food_type}
