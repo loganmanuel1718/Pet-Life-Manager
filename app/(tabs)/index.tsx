@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
-import { StyleSheet, FlatList, TouchableOpacity, RefreshControl, Image, ScrollView } from 'react-native';
-import { Text, View } from '@/components/Themed';
+import { StyleSheet, FlatList, TouchableOpacity, RefreshControl, Image, ScrollView, View } from 'react-native';
+import { Text } from '@/components/Themed';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -103,73 +103,77 @@ export default function PetDashboard() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: '#F9F9FB',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 20,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#EAEAEA',
+    paddingTop: 70,
+    paddingBottom: 24,
+    backgroundColor: '#F9F9FB',
   },
   title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#333',
+    fontSize: 38,
+    fontWeight: '800',
+    color: '#111',
+    letterSpacing: -1,
   },
   signOutText: {
     fontSize: 16,
+    fontWeight: '600',
     color: '#FF3B30',
   },
   scrollContent: {
     padding: 20,
-    paddingBottom: 100,
+    paddingBottom: 150, // Floating tab bar clearance
   },
   section: {
     marginBottom: 32,
   },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#333',
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#111',
     marginBottom: 16,
+    letterSpacing: -0.5,
   },
   emptyContainer: {
     alignItems: 'center',
-    paddingVertical: 32,
+    justifyContent: 'center',
+    paddingVertical: 40,
   },
   emptyText: {
-    fontSize: 16,
-    color: '#999',
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#333',
+    marginBottom: 8,
   },
   petCard: {
     backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 24, // heavily rounded
+    padding: 20,
     marginBottom: 16,
     flexDirection: 'row',
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.05,
-    shadowRadius: 8,
+    shadowRadius: 15,
     elevation: 3,
   },
   petAvatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     marginRight: 16,
     backgroundColor: '#EAEAEA',
   },
   petAvatarPlaceholder: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     backgroundColor: '#F0F0F0',
     justifyContent: 'center',
     alignItems: 'center',
@@ -179,32 +183,34 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   petName: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#111',
     marginBottom: 4,
   },
   petDetails: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 15,
+    color: '#8E8E93',
+    fontWeight: '500',
   },
   fab: {
     position: 'absolute',
-    bottom: 30,
+    bottom: 120, // Above the floating tab bar
     alignSelf: 'center',
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 24,
-    paddingVertical: 16,
+    backgroundColor: '#111', // Apple stark contrast
+    paddingHorizontal: 28,
+    paddingVertical: 18,
     borderRadius: 30,
-    shadowColor: '#007AFF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 15,
     elevation: 5,
   },
   fabText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
 });

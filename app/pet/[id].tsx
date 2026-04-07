@@ -271,8 +271,9 @@ export default function PetDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     padding: 20,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: '#F9F9FB', // soft Apple background
     flexGrow: 1,
+    paddingBottom: 40,
   },
   centered: {
     flex: 1,
@@ -288,8 +289,8 @@ const styles = StyleSheet.create({
     width: 140,
     height: 140,
     borderRadius: 70,
-    borderWidth: 4,
-    borderColor: '#FAFAFA',
+    borderWidth: 6, // thicker border
+    borderColor: '#F9F9FB', // blends perfectly into background
   },
   heroPlaceholder: {
     width: 140,
@@ -298,26 +299,27 @@ const styles = StyleSheet.create({
     backgroundColor: '#EAEAEA',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 4,
-    borderColor: '#FAFAFA',
+    borderWidth: 6,
+    borderColor: '#F9F9FB',
   },
   card: {
     backgroundColor: '#fff',
-    borderRadius: 12,
+    borderRadius: 24, // High capsule shape
     padding: 24,
-    paddingTop: 56, // Padding to avoid clipping the floating hero avatar
+    paddingTop: 56, 
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04, // very soft
+    shadowRadius: 15,
     elevation: 3,
     marginBottom: 24,
     alignItems: 'center', 
   },
   name: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#333',
+    fontSize: 34,
+    fontWeight: '800',
+    color: '#111',
+    letterSpacing: -0.5,
     marginBottom: 4,
     textAlign: 'center',
   },
@@ -375,35 +377,38 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   button: {
-    padding: 16,
-    borderRadius: 8,
+    padding: 18,
+    borderRadius: 24, // heavily rounded
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
   },
   editButton: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#007AFF',
+    backgroundColor: '#111', // Stark black Apple aesthetic
   },
   editButtonText: {
-    color: '#007AFF',
+    color: '#fff',
   },
   deleteButton: {
-    backgroundColor: '#FF3B30',
+    backgroundColor: '#FFE5E5', // Soft pastel red
   },
   buttonText: {
-    color: '#fff',
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
+    color: '#FF3B30',
   },
   title: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#333',
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#111',
+    letterSpacing: -0.5,
     marginBottom: 8,
   },
   addText: {
     color: '#007AFF',
-    fontWeight: '600',
+    fontWeight: '700',
     fontSize: 16,
   },
   scheduleRow: {

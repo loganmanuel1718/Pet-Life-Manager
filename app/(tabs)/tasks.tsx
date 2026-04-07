@@ -74,7 +74,6 @@ export default function TasksTab() {
   const markAsCompleted = async (taskId: string, petId: string, taskType: string) => {
     if (!session?.user?.id) return;
     
-    // Optimistic UI update
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, is_completed: true } : t));
 
     const now = new Date();
@@ -99,7 +98,6 @@ export default function TasksTab() {
   const unmarkAsCompleted = async (taskId: string, taskType: string) => {
     if (!session?.user?.id) return;
     
-    // Optimistic UI update
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, is_completed: false } : t));
 
     const now = new Date();
@@ -123,26 +121,29 @@ export default function TasksTab() {
     const hours = parseInt(h, 10);
     const ampm = hours >= 12 ? 'PM' : 'AM';
     const hours12 = hours % 12 || 12;
-    return `${hours12}:${m} ${ampm}`;
+    return `${hours12}:${m}`; // Removed AM/PM to make it sleek like image 2
   };
 
-  // Split out pending and completed
+  const formatAMPM = (timeString: string) => {
+    const [h] = timeString.split(':');
+    return parseInt(h, 10) >= 12 ? 'pm' : 'am';
+  };
+
   const pendingTasks = tasks.filter(t => !t.is_completed);
   const completedTasks = tasks.filter(t => t.is_completed);
 
-  // Grouping Logic for PENDING tasks ONLY
   type MealGroup = Record<string, Record<string, any[]>>;
   const groupedTasks: MealGroup = {
-    'Breakfast': {},
-    'Lunch': {},
-    'Dinner': {}
+    'Morning': {},
+    'Afternoon': {},
+    'Evening': {}
   };
 
   pendingTasks.forEach(task => {
     const hour = parseInt(task.time.split(':')[0], 10);
-    let meal = 'Dinner';
-    if (hour < 11) meal = 'Breakfast';
-    else if (hour < 16) meal = 'Lunch';
+    let meal = 'Evening';
+    if (hour < 12) meal = 'Morning';
+    else if (hour < 17) meal = 'Afternoon';
 
     const petName = task.pets?.name || 'Unknown Pet';
     
@@ -152,12 +153,18 @@ export default function TasksTab() {
     groupedTasks[meal][petName].push(task);
   });
 
-  const timeBlocks = ['Breakfast', 'Lunch', 'Dinner'];
+  const timeBlocks = ['Morning', 'Afternoon', 'Evening'];
+  
+  // Date rendering logic for the Title
+  const today = new Date();
+  const dayName = today.toLocaleDateString('en-US', { weekday: 'long' });
+  const dateSub = today.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Tasks</Text>
+        <Text style={styles.title}>{dayName}</Text>
+        <Text style={styles.subtitle}>{dateSub}</Text>
       </View>
 
       <ScrollView 
@@ -167,21 +174,23 @@ export default function TasksTab() {
 
         {tasks.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No tasks found.</Text>
-            <Text style={styles.emptySubtext}>Add feeding or medical schedules in from a pet's profile.</Text>
+            <Text style={styles.emptyText}>Nothing scheduled yet.</Text>
+            <Text style={styles.emptySubtext}>Head over to a pet's profile to add tasks.</Text>
           </View>
         ) : (
           <>
-            {/* COMPLETED TASKS SECTION */}
+            {/* COMPLETED TASKS SECTION - At top */}
             {completedTasks.length > 0 && (
                <View style={styles.completedSection}>
-                  <Text style={styles.completedTitle}>Completed Today</Text>
+                  <View style={styles.sectionPill}>
+                    <FontAwesome5 name="check-double" size={12} color="#34C759" />
+                    <Text style={styles.sectionPillText}>COMPLETED ({completedTasks.length})</Text>
+                  </View>
                   
                   {completedTasks.map(task => (
                     <View key={task.id} style={[styles.scheduleCard, styles.scheduleCardComplete, { marginLeft: 0 }]}>
                       <View style={styles.scheduleMeta}>
                         
-                        {/* Show Pet Avatar inline since we are not grouping by pet here */}
                         {task.pets?.avatar_url ? (
                           <Image source={{ uri: task.pets.avatar_url }} style={styles.miniAvatarCompleted} />
                         ) : (
@@ -192,7 +201,7 @@ export default function TasksTab() {
 
                         <View>
                           <Text style={[styles.schedTime, styles.textMuted]}>
-                            {formatTime(task.time)} • {task.pets?.name || 'Pet'}
+                            {formatTime(task.time)}<Text style={styles.ampm}>{formatAMPM(task.time)}</Text> • {task.pets?.name || 'Pet'}
                           </Text>
                           <Text style={[styles.schedDetails, styles.textMuted]}>
                             {task.taskType === 'Medicine' ? `${task.dosage} • ${task.medicine_name}` : `${task.amount} • ${task.food_type}`}
@@ -202,7 +211,7 @@ export default function TasksTab() {
 
                       <TouchableOpacity onPress={() => unmarkAsCompleted(task.id, task.taskType)}>
                         <View style={styles.checkCircleComplete}>
-                          <FontAwesome5 name="check" size={14} color="#fff" />
+                          <FontAwesome5 name="check" size={12} color="#fff" />
                         </View>
                       </TouchableOpacity>
                     </View>
@@ -213,7 +222,7 @@ export default function TasksTab() {
             {/* PENDING / UPCOMING SECTION */}
             {pendingTasks.length === 0 ? (
                <View style={styles.allDoneContainer}>
-                  <Text style={styles.allDoneText}>All caught up for today! 🎉</Text>
+                  <Text style={styles.allDoneText}>All caught up for today. Great job!</Text>
                </View>
             ) : (
               timeBlocks.map(block => {
@@ -221,14 +230,23 @@ export default function TasksTab() {
                 const petNames = Object.keys(blockTasks);
                 
                 if (petNames.length === 0) return null;
+                
+                let iconName = 'sun';
+                let iconColor = '#FF9500';
+                if (block === 'Afternoon') { iconName = 'cloud-sun'; iconColor = '#FF3B30'; }
+                if (block === 'Evening') { iconName = 'moon'; iconColor = '#5856D6'; }
     
                 return (
                   <View key={block} style={styles.mealSection}>
-                    <Text style={styles.mealTitle}>{block}</Text>
+                    <View style={styles.sectionPill}>
+                      <FontAwesome5 name={iconName} size={14} color={iconColor} />
+                      <Text style={styles.sectionPillText}>{block.toUpperCase()} ({Object.values(blockTasks).flat().length})</Text>
+                    </View>
                     
                     {petNames.map(petName => (
                       <View key={petName} style={styles.petGroup}>
                         
+                        {/* Soft Pet Header */}
                         <View style={styles.petGroupHeader}>
                           {blockTasks[petName][0]?.pets?.avatar_url ? (
                             <Image source={{ uri: blockTasks[petName][0].pets.avatar_url }} style={styles.miniAvatarPetGroup} />
@@ -239,25 +257,21 @@ export default function TasksTab() {
                         </View>
     
                         {blockTasks[petName].map((task: any) => (
-                          <View 
-                             key={task.id} 
-                             style={[
-                               styles.scheduleCard, 
-                               task.taskType === 'Medicine' && { borderLeftColor: '#FF9500' }
-                             ]}
-                          >
+                          <View key={task.id} style={styles.scheduleCard}>
                             <View style={styles.scheduleMeta}>
-                              {task.taskType === 'Medicine' && (
-                                <View style={styles.taskIconCircle}>
-                                  <FontAwesome5 name="pills" size={12} color="#FF9500" />
-                                </View>
-                              )}
+                              <View style={[styles.taskIconCircle, task.taskType === 'Medicine' && { backgroundColor: '#F2E8FB' }]}>
+                                {task.taskType === 'Medicine' ? (
+                                    <FontAwesome5 name="pills" size={14} color="#9C51E0" />
+                                ) : (
+                                    <FontAwesome5 name="bone" size={14} color="#007AFF" />
+                                )}
+                              </View>
                               <View>
                                 <Text style={styles.schedTime}>
-                                  {formatTime(task.time)}
+                                  {task.taskType === 'Medicine' ? task.medicine_name : task.food_type}
                                 </Text>
                                 <Text style={styles.schedDetails}>
-                                  {task.taskType === 'Medicine' ? `${task.dosage} • ${task.medicine_name}` : `${task.amount} • ${task.food_type}`}
+                                   {formatTime(task.time)}{formatAMPM(task.time)} • {task.taskType === 'Medicine' ? task.dosage : task.amount}
                                 </Text>
                               </View>
                             </View>
@@ -285,61 +299,77 @@ export default function TasksTab() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: '#F9F9FB', // soft Apple background
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 20,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#EAEAEA',
+    paddingTop: 70,
+    paddingBottom: 24,
+    backgroundColor: '#F9F9FB',
   },
   title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#333',
+    fontSize: 38,
+    fontWeight: '800', // Heavy Apple Typography
+    color: '#111',
+    letterSpacing: -1,
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#8E8E93',
+    fontWeight: '500',
   },
   scrollContent: {
     padding: 20,
-    paddingBottom: 100,
+    paddingBottom: 150, // Extra padding for new floating tab bar
+  },
+  sectionPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20, // heavy pill calculation
+    alignSelf: 'flex-start',
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 8,
+    elevation: 1,
+  },
+  sectionPillText: {
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 1.2,
+    color: '#333',
+    marginLeft: 8,
   },
   mealSection: {
-    marginBottom: 32,
-  },
-  mealTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#333',
-    marginBottom: 16,
-    borderBottomWidth: 2,
-    borderBottomColor: '#EAEAEA',
-    paddingBottom: 8,
+    marginBottom: 40,
   },
   petGroup: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   petGroupHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 12,
+    marginLeft: 4,
   },
   petGroupTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#666',
+    fontWeight: '700',
+    color: '#111',
   },
   miniAvatarPetGroup: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    marginRight: 8,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    marginRight: 10,
   },
   miniAvatarFallback: {
-    marginRight: 8,
+    marginRight: 10,
     marginLeft: 4,
   },
   miniAvatarCompleted: {
@@ -359,106 +389,102 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   taskIconCircle: {
-     width: 28, 
-     height: 28, 
-     borderRadius: 14, 
-     backgroundColor: '#FFF0D9', 
+     width: 44, 
+     height: 44, 
+     borderRadius: 22, 
+     backgroundColor: '#E5F1FF', // Soft pastel blue
      justifyContent: 'center', 
      alignItems: 'center', 
-     marginRight: 12 
+     marginRight: 16 
   },
   scheduleCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: '#fff',
-    borderRadius: 12,
+    borderRadius: 24, // High capsule shape
     padding: 16,
     marginBottom: 12,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05, // very soft shadow everywhere
+    shadowRadius: 15,
     elevation: 2,
-    borderLeftWidth: 4,
-    borderLeftColor: '#007AFF', // highlight accent default (food)
-    marginLeft: 12, 
+    borderWidth: 0, // removed sharp border lines completely
   },
   scheduleCardComplete: {
-    borderLeftColor: '#EAEAEA',
     backgroundColor: '#F9F9F9',
     shadowOpacity: 0,
     elevation: 0,
+    borderWidth: 1,
+    borderColor: '#EAEAEA',
   },
   scheduleMeta: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   schedTime: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '700',
-    color: '#333',
+    color: '#222',
+  },
+  ampm: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#8E8E93',
+    marginLeft: 2,
   },
   schedDetails: {
     fontSize: 14,
-    color: '#666',
+    color: '#8E8E93',
+    fontWeight: '500',
     marginTop: 2,
   },
   textMuted: {
     color: '#999',
+    textDecorationLine: 'line-through', // strikethrough for completed
   },
   checkCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    borderWidth: 2,
-    borderColor: '#EAEAEA',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 2.5, // bold circle outline
+    borderColor: '#D1D1D6',
     backgroundColor: '#fff',
   },
   checkCircleComplete: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: '#34C759',
     justifyContent: 'center',
     alignItems: 'center',
   },
   emptyContainer: {
     alignItems: 'center',
-    paddingVertical: 32,
+    justifyContent: 'center',
+    paddingVertical: 60,
   },
   emptyText: {
-    fontSize: 16,
+    fontSize: 18,
     color: '#333',
-    fontWeight: '500',
-    marginBottom: 4,
+    fontWeight: '700',
+    marginBottom: 8,
   },
   emptySubtext: {
-    fontSize: 14,
-    color: '#999',
+    fontSize: 15,
+    color: '#8E8E93',
   },
   allDoneContainer: {
     alignItems: 'center',
-    paddingVertical: 40,
-    backgroundColor: '#F0F8FF',
-    borderRadius: 16,
-    marginBottom: 32,
+    paddingVertical: 50,
   },
   allDoneText: {
     fontSize: 18,
-    color: '#007AFF',
-    fontWeight: '600',
+    color: '#34C759',
+    fontWeight: '700',
   },
   completedSection: {
     marginBottom: 32,
-    borderBottomWidth: 2,
-    borderBottomColor: '#EAEAEA',
-    paddingBottom: 24,
-  },
-  completedTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#999',
-    marginBottom: 16,
   },
 });
