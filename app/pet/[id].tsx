@@ -20,7 +20,7 @@ export default function PetDetailScreen() {
     
     const { data, error } = await supabase
       .from('pets')
-      .select('*, feeding_schedules(*)')
+      .select('*, feeding_schedules(*), medicine_schedules(*)')
       .eq('id', id)
       .single();
 
@@ -72,6 +72,25 @@ export default function PetDetailScreen() {
           style: "destructive", 
           onPress: async () => {
             const { error } = await supabase.from('feeding_schedules').delete().eq('id', scheduleId);
+            if (error) Alert.alert('Error', error.message);
+            else fetchPet();
+          }
+        }
+      ]
+    );
+  };
+
+  const handleDeleteMedicine = (medicineId: string) => {
+    Alert.alert(
+      "Remove Medication",
+      "Remove this daily medication schedule?",
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Remove", 
+          style: "destructive", 
+          onPress: async () => {
+            const { error } = await supabase.from('medicine_schedules').delete().eq('id', medicineId);
             if (error) Alert.alert('Error', error.message);
             else fetchPet();
           }
@@ -192,6 +211,40 @@ export default function PetDetailScreen() {
             ))
           ) : (
             <Text style={styles.value}>No schedules set yet.</Text>
+          )}
+        </View>
+
+        {/* Medicine Schedules Block */}
+        <View style={styles.card}>
+          <View style={[styles.infoRow, { alignItems: 'center' }]}>
+            <Text style={[styles.title, { marginBottom: 0 }]}>Medications</Text>
+            <TouchableOpacity onPress={() => router.push(`/medicine-modal?pet_id=${pet.id}`)}>
+              <Text style={styles.addText}>+ Add</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={{ height: 16 }} />
+          
+          {pet.medicine_schedules && pet.medicine_schedules.length > 0 ? (
+            pet.medicine_schedules.sort((a: any, b: any) => a.time.localeCompare(b.time)).map((med: any) => (
+              <View key={med.id} style={styles.scheduleRow}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#E5F1FF', justifyContent: 'center', alignItems: 'center', marginRight: 12 }}>
+                    <FontAwesome5 name="pills" size={12} color="#007AFF" />
+                  </View>
+                  <View>
+                    <Text style={styles.scheduleTime}>
+                      {formatTime(med.time)}
+                    </Text>
+                    <Text style={styles.scheduleDetails}>{med.dosage} • {med.medicine_name}</Text>
+                  </View>
+                </View>
+                <TouchableOpacity onPress={() => handleDeleteMedicine(med.id)}>
+                   <FontAwesome5 name="trash" size={16} color="#FF3B30" />
+                </TouchableOpacity>
+              </View>
+            ))
+          ) : (
+            <Text style={styles.value}>No medicines scheduled.</Text>
           )}
         </View>
 

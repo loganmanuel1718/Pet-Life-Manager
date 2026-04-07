@@ -35,11 +35,11 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="feeding"
+        name="tasks"
         options={{
-          title: 'Menu',
+          title: 'Tasks',
           headerShown: false,
-          tabBarIcon: ({ color }) => <TabBarIcon name="calendar-check-o" color={color} />,
+          tabBarIcon: ({ color }) => <TabBarIcon name="check-square-o" color={color} />,
         }}
       />
     </Tabs>
