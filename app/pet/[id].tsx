@@ -309,6 +309,14 @@ export default function PetDetailScreen() {
 
         <View style={styles.buttonContainer}>
           <TouchableOpacity 
+            style={[styles.button, styles.healthButton]}
+            onPress={() => router.push(`/health/${pet.id}`)}
+          >
+            <FontAwesome5 name="heartbeat" size={16} color="#007AFF" style={{marginRight: 8}} />
+            <Text style={[styles.buttonText, styles.healthButtonText]}>Health Hub</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
             style={[styles.button, styles.editButton]} 
             onPress={() => router.push(`/modal?id=${pet.id}`)}
           >
@@ -439,10 +447,20 @@ const styles = StyleSheet.create({
     padding: 18,
     borderRadius: 24, // heavily rounded
     alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.05,
     shadowRadius: 10,
+  },
+  healthButton: {
+    backgroundColor: '#E5F1FF', // Soft hospital blue
+    borderWidth: 1,
+    borderColor: '#CCE4FF',
+  },
+  healthButtonText: {
+    color: '#007AFF', // Rich blue to pop
   },
   editButton: {
     backgroundColor: '#111', // Stark black Apple aesthetic
