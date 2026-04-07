@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { StyleSheet, TouchableOpacity, RefreshControl, Image, ScrollView, View } from 'react-native';
 import { Text } from '@/components/Themed';
 import { supabase } from '../../lib/supabase';
@@ -10,13 +10,33 @@ export default function TasksTab() {
   const { session } = useAuth();
   const [tasks, setTasks] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  
+  // Create a 30-day rolling window around today
+  const [dateWindow] = useState(() => Array.from({ length: 31 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() + (i - 15));
+    return d;
+  }));
+
+  const scrollViewRef = useRef<ScrollView>(null);
+
+  // Auto-scroll to center on mount
+  useEffect(() => {
+    // Arbitrary timeout to allow layout to compute
+    setTimeout(() => {
+       if (scrollViewRef.current) {
+          // approx width of 15 items * 52px each
+          scrollViewRef.current.scrollTo({ x: 15 * 52 - 150, animated: false });
+       }
+    }, 100);
+  }, []);
 
   const fetchTasks = async () => {
     if (!session?.user?.id) return;
     
-    // Time Strings
-    const now = new Date();
-    const localDateString = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    // Use selectedDate for all logic!
+    const localDateString = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`;
 
     // Parallel Sub-Queries
     const { data: feedingSched } = await supabase.from('feeding_schedules').select('*, pets(name, avatar_url)');
@@ -57,9 +77,10 @@ export default function TasksTab() {
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     fetchTasks().then(() => setRefreshing(false));
-  }, [session]);
+  }, [session, selectedDate]);
 
-  useFocusEffect(useCallback(() => { fetchTasks(); }, [session]));
+  // Refetch when selectedDate changes
+  useFocusEffect(useCallback(() => { fetchTasks(); }, [session, selectedDate]));
 
   const markAsCompleted = async (taskId: string, petId: string, taskType: string) => {
     if (!session?.user?.id) return;
@@ -71,8 +92,7 @@ export default function TasksTab() {
        return;
     }
 
-    const now = new Date();
-    const localDateString = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const localDateString = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`;
     const payload = { schedule_id: taskId, pet_id: petId, user_id: session.user.id, date: localDateString };
     
     let tableName = 'feeding_logs';
@@ -93,8 +113,7 @@ export default function TasksTab() {
        return;
     }
 
-    const now = new Date();
-    const localDateString = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const localDateString = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`;
     
     let tableName = 'feeding_logs';
     if (taskType === 'Medicine') tableName = 'medicine_logs';
@@ -143,22 +162,59 @@ export default function TasksTab() {
   });
 
   const timeBlocks = ['Morning', 'Afternoon', 'Evening'];
-  const today = new Date();
-  const dayName = today.toLocaleDateString('en-US', { weekday: 'long' });
-  const dateSub = today.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  const selectedDayName = selectedDate.toLocaleDateString('en-US', { weekday: 'long' });
+  const selectedMonthYear = selectedDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
 
   return (
     <View style={styles.container}>
+      
+      {/* HEADER TOP ROW */}
       <View style={styles.header}>
-        <View style={styles.headerTitles}>
-          <Text style={styles.title}>{dayName}</Text>
-          <Text style={styles.subtitle}>{dateSub}</Text>
+        <View style={styles.headerTop}>
+          <Text style={styles.title}>{selectedDayName}</Text>
+          <View style={styles.monthHeader}>
+            <Text style={styles.monthHeaderText}>{selectedMonthYear.toUpperCase()}</Text>
+            <FontAwesome5 name="chevron-right" size={12} color="#8E8E93" style={{marginLeft: 6}} />
+          </View>
         </View>
-        <Link href="/quick-task-modal" asChild>
-          <TouchableOpacity style={styles.headerAddBtn}>
-             <FontAwesome5 name="plus" size={18} color="#fff" />
-          </TouchableOpacity>
-        </Link>
+
+        {/* FAB + BUTTON IN SAME HEADER */}
+        <View style={styles.headerRight}>
+           <Link href="/quick-task-modal" asChild>
+             <TouchableOpacity style={styles.headerAddBtn}>
+               <FontAwesome5 name="plus" size={18} color="#111" />
+             </TouchableOpacity>
+           </Link>
+        </View>
+      </View>
+
+      {/* HORIZONTAL WEEK/DATE VIEW */}
+      <View style={styles.dateStripWrapper}>
+         <ScrollView 
+           horizontal 
+           showsHorizontalScrollIndicator={false} 
+           contentContainerStyle={styles.dateStrip}
+           ref={scrollViewRef}
+         >
+           {dateWindow.map((d, index) => {
+             const isSelected = d.toDateString() === selectedDate.toDateString();
+             const isToday = d.toDateString() === new Date().toDateString();
+             const dayChar = d.toLocaleDateString('en-US', { weekday: 'narrow' }); // 'M', 'T', 'W'
+             const dateNum = d.getDate();
+
+             return (
+               <TouchableOpacity 
+                 key={index} 
+                 style={[styles.dateItem, isSelected && styles.dateItemActive]}
+                 onPress={() => setSelectedDate(d)}
+               >
+                 <Text style={[styles.dayChar, isSelected && styles.dayCharActive, isToday && { color: '#FF3B30' }]}>{dayChar}</Text>
+                 <Text style={[styles.dateNum, isSelected && styles.dateNumActive, isToday && { color: '#FF3B30' }]}>{dateNum}</Text>
+                 {isSelected && <View style={[styles.activeIndicator, isToday && { backgroundColor: '#FF3B30' }]} />}
+               </TouchableOpacity>
+             )
+           })}
+         </ScrollView>
       </View>
 
       <ScrollView 
@@ -168,58 +224,15 @@ export default function TasksTab() {
 
         {tasks.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>Nothing scheduled yet.</Text>
-            <Text style={styles.emptySubtext}>Head over to a pet's profile to add routines.</Text>
+            <Text style={styles.emptyText}>Nothing scheduled.</Text>
+            <Text style={styles.emptySubtext}>You have a free calendar.</Text>
           </View>
         ) : (
           <>
-            {/* COMPLETED TASKS SECTION */}
-            {completedTasks.length > 0 && (
-               <View style={styles.completedSection}>
-                  <View style={styles.sectionPill}>
-                    <FontAwesome5 name="check-double" size={12} color="#34C759" />
-                    <Text style={styles.sectionPillText}>COMPLETED ({completedTasks.length})</Text>
-                  </View>
-                  
-                  {completedTasks.map(task => (
-                    <View key={task.id} style={[styles.scheduleCard, styles.scheduleCardComplete, { marginLeft: 0 }]}>
-                      <View style={styles.scheduleMeta}>
-                        
-                        {task.pets?.avatar_url ? (
-                          <Image source={{ uri: task.pets.avatar_url }} style={styles.miniAvatarCompleted} />
-                        ) : (
-                          <View style={styles.miniAvatarCompletedFallback}>
-                            <FontAwesome5 name={task.taskType === 'QuickTask' && !task.pet_id ? 'home' : 'paw'} size={10} color="#999" />
-                          </View>
-                        )}
-
-                        <View>
-                          <Text style={[styles.schedTime, styles.textMuted]}>
-                            {formatTime(task.time)}<Text style={styles.ampm}>{formatAMPM(task.time)}</Text> • {task.pets?.name || 'Home'}
-                          </Text>
-                          <Text style={[styles.schedDetails, styles.textMuted]}>
-                            {task.taskType === 'Food' && `${task.amount} • ${task.food_type}`}
-                            {task.taskType === 'Medicine' && `${task.dosage} • ${task.medicine_name}`}
-                            {task.taskType === 'Grooming' && task.activity}
-                            {task.taskType === 'QuickTask' && `${task.category} • ${task.title}`}
-                          </Text>
-                        </View>
-                      </View>
-
-                      <TouchableOpacity onPress={() => unmarkAsCompleted(task.id, task.taskType)}>
-                        <View style={styles.checkCircleComplete}>
-                          <FontAwesome5 name="check" size={12} color="#fff" />
-                        </View>
-                      </TouchableOpacity>
-                    </View>
-                  ))}
-               </View>
-            )}
-
             {/* PENDING / UPCOMING SECTION */}
             {pendingTasks.length === 0 ? (
                <View style={styles.allDoneContainer}>
-                  <Text style={styles.allDoneText}>All caught up for today. Great job!</Text>
+                  <Text style={styles.allDoneText}>All caught up for this day. Great job!</Text>
                </View>
             ) : (
               timeBlocks.map(block => {
@@ -243,7 +256,6 @@ export default function TasksTab() {
                     {petNames.map(petName => (
                       <View key={petName} style={styles.petGroup}>
                         
-                        {/* Soft Pet Header */}
                         <View style={styles.petGroupHeader}>
                           {blockTasks[petName][0]?.pets?.avatar_url ? (
                             <Image source={{ uri: blockTasks[petName][0].pets.avatar_url }} style={styles.miniAvatarPetGroup} />
@@ -294,6 +306,49 @@ export default function TasksTab() {
               })
             )}
 
+            {/* COMPLETED TASKS SECTION */}
+            {completedTasks.length > 0 && (
+               <View style={styles.completedSection}>
+                  <View style={styles.sectionPill}>
+                    <FontAwesome5 name="check-double" size={12} color="#34C759" />
+                    <Text style={styles.sectionPillText}>COMPLETED ({completedTasks.length})</Text>
+                  </View>
+                  
+                  {completedTasks.map(task => (
+                    <View key={task.id} style={[styles.scheduleCard, styles.scheduleCardComplete, { marginLeft: 0 }]}>
+                      <View style={styles.scheduleMeta}>
+                        
+                        {task.pets?.avatar_url ? (
+                          <Image source={{ uri: task.pets.avatar_url }} style={styles.miniAvatarCompleted} />
+                        ) : (
+                          <View style={styles.miniAvatarCompletedFallback}>
+                            <FontAwesome5 name={task.taskType === 'QuickTask' && !task.pet_id ? 'home' : 'paw'} size={10} color="#999" />
+                          </View>
+                        )}
+
+                        <View>
+                          <Text style={[styles.schedTime, styles.textMuted]}>
+                            {formatTime(task.time)}<Text style={styles.ampm}>{formatAMPM(task.time)}</Text> • {task.pets?.name || 'Home'}
+                          </Text>
+                          <Text style={[styles.schedDetails, styles.textMuted]}>
+                            {task.taskType === 'Food' && `${task.amount} • ${task.food_type}`}
+                            {task.taskType === 'Medicine' && `${task.dosage} • ${task.medicine_name}`}
+                            {task.taskType === 'Grooming' && task.activity}
+                            {task.taskType === 'QuickTask' && `${task.category} • ${task.title}`}
+                          </Text>
+                        </View>
+                      </View>
+
+                      <TouchableOpacity onPress={() => unmarkAsCompleted(task.id, task.taskType)}>
+                        <View style={styles.checkCircleComplete}>
+                          <FontAwesome5 name="check" size={12} color="#fff" />
+                        </View>
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+               </View>
+            )}
+
           </>
         )}
       </ScrollView>
@@ -310,39 +365,93 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingHorizontal: 24,
-    paddingTop: 70,
-    paddingBottom: 24,
+    paddingTop: 65,
+    paddingBottom: 16,
     backgroundColor: '#F9F9FB',
   },
-  headerTitles: {
+  headerTop: {
     justifyContent: 'center',
   },
-  headerAddBtn: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#111',
+  headerRight: {
     justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
   },
   title: {
-    fontSize: 38,
+    fontSize: 36,
     fontWeight: '800',
     color: '#111',
     letterSpacing: -1,
+  },
+  monthHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    position: 'absolute',
+    right: -130, // Position it floating to the right of the huge title, mimicking image 2
+    bottom: 8,
+  },
+  monthHeaderText: {
+    fontSize: 13,
+    color: '#8E8E93',
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  headerAddBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#EAEAEA',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  // Date Strip CSS
+  dateStripWrapper: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+    backgroundColor: '#F9F9FB',
+    paddingBottom: 16,
+  },
+  dateStrip: {
+    paddingHorizontal: 20,
+    alignItems: 'center',
+  },
+  dateItem: {
+    width: 48,
+    height: 64,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 6,
+    borderRadius: 16,
+  },
+  dateItemActive: {
+    backgroundColor: '#F2F2F7',
+  },
+  dayChar: {
+    fontSize: 12,
+    color: '#C7C7CC',
+    fontWeight: '700',
     marginBottom: 4,
   },
-  subtitle: {
-    fontSize: 16,
+  dayCharActive: {
     color: '#8E8E93',
-    fontWeight: '500',
+  },
+  dateNum: {
+    fontSize: 20,
+    color: '#C7C7CC',
+    fontWeight: '600',
+  },
+  dateNumActive: {
+    color: '#111',
+  },
+  activeIndicator: {
+    position: 'absolute',
+    bottom: 8,
+    width: 14,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: '#D1D1D6',
   },
   scrollContent: {
     padding: 20,
+    paddingTop: 32,
     paddingBottom: 150, 
   },
   sectionPill: {
