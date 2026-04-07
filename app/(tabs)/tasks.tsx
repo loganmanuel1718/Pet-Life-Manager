@@ -91,9 +91,30 @@ export default function TasksTab() {
     const { error } = await supabase.from(tableName).insert([payload]);
     
     if (error) {
-       // Revert UI on failure
        fetchTasks();
        console.error(`Failed to execute ${taskType} log`, error);
+    }
+  };
+
+  const unmarkAsCompleted = async (taskId: string, taskType: string) => {
+    if (!session?.user?.id) return;
+    
+    // Optimistic UI update
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, is_completed: false } : t));
+
+    const now = new Date();
+    const localDateString = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+    const tableName = taskType === 'Food' ? 'feeding_logs' : 'medicine_logs';
+    const { error } = await supabase
+      .from(tableName)
+      .delete()
+      .eq('schedule_id', taskId)
+      .eq('date', localDateString);
+    
+    if (error) {
+       fetchTasks();
+       console.error(`Failed to remove ${taskType} log`, error);
     }
   };
 
@@ -105,7 +126,11 @@ export default function TasksTab() {
     return `${hours12}:${m} ${ampm}`;
   };
 
-  // Grouping Logic
+  // Split out pending and completed
+  const pendingTasks = tasks.filter(t => !t.is_completed);
+  const completedTasks = tasks.filter(t => t.is_completed);
+
+  // Grouping Logic for PENDING tasks ONLY
   type MealGroup = Record<string, Record<string, any[]>>;
   const groupedTasks: MealGroup = {
     'Breakfast': {},
@@ -113,7 +138,7 @@ export default function TasksTab() {
     'Dinner': {}
   };
 
-  tasks.forEach(task => {
+  pendingTasks.forEach(task => {
     const hour = parseInt(task.time.split(':')[0], 10);
     let meal = 'Dinner';
     if (hour < 11) meal = 'Breakfast';
@@ -146,70 +171,111 @@ export default function TasksTab() {
             <Text style={styles.emptySubtext}>Add feeding or medical schedules in from a pet's profile.</Text>
           </View>
         ) : (
-          timeBlocks.map(block => {
-            const blockTasks = groupedTasks[block];
-            const petNames = Object.keys(blockTasks);
-            
-            if (petNames.length === 0) return null;
-
-            return (
-              <View key={block} style={styles.mealSection}>
-                <Text style={styles.mealTitle}>{block}</Text>
-                
-                {petNames.map(petName => (
-                  <View key={petName} style={styles.petGroup}>
-                    
-                    <View style={styles.petGroupHeader}>
-                      {blockTasks[petName][0]?.pets?.avatar_url ? (
-                        <Image source={{ uri: blockTasks[petName][0].pets.avatar_url }} style={styles.miniAvatarPetGroup} />
-                      ) : (
-                        <FontAwesome5 name="paw" size={12} color="#999" style={styles.miniAvatarFallback} />
-                      )}
-                      <Text style={styles.petGroupTitle}>{petName}</Text>
-                    </View>
-
-                    {blockTasks[petName].map((task: any) => (
-                      <View 
-                         key={task.id} 
-                         style={[
-                           styles.scheduleCard, 
-                           task.is_completed && styles.scheduleCardComplete,
-                           task.taskType === 'Medicine' && !task.is_completed && { borderLeftColor: '#FF9500' } // Orange accent for medicine
-                         ]}
-                      >
-                        <View style={styles.scheduleMeta}>
-                          {task.taskType === 'Medicine' && (
-                            <View style={[styles.taskIconCircle, task.is_completed && { backgroundColor: '#EAEAEA' }]}>
-                              <FontAwesome5 name="pills" size={12} color={task.is_completed ? '#999' : '#FF9500'} />
-                            </View>
-                          )}
-                          <View>
-                            <Text style={[styles.schedTime, task.is_completed && styles.textMuted]}>
-                              {formatTime(task.time)}
-                            </Text>
-                            <Text style={[styles.schedDetails, task.is_completed && styles.textMuted]}>
-                              {task.taskType === 'Medicine' ? `${task.dosage} • ${task.medicine_name}` : `${task.amount} • ${task.food_type}`}
-                            </Text>
-                          </View>
-                        </View>
-
-                        {task.is_completed ? (
-                          <View style={styles.checkCircleComplete}>
-                            <FontAwesome5 name="check" size={14} color="#fff" />
-                          </View>
+          <>
+            {/* COMPLETED TASKS SECTION */}
+            {completedTasks.length > 0 && (
+               <View style={styles.completedSection}>
+                  <Text style={styles.completedTitle}>Completed Today</Text>
+                  
+                  {completedTasks.map(task => (
+                    <View key={task.id} style={[styles.scheduleCard, styles.scheduleCardComplete, { marginLeft: 0 }]}>
+                      <View style={styles.scheduleMeta}>
+                        
+                        {/* Show Pet Avatar inline since we are not grouping by pet here */}
+                        {task.pets?.avatar_url ? (
+                          <Image source={{ uri: task.pets.avatar_url }} style={styles.miniAvatarCompleted} />
                         ) : (
-                          <TouchableOpacity 
-                            style={styles.checkCircle} 
-                            onPress={() => markAsCompleted(task.id, task.pet_id, task.taskType)}
-                          />
+                          <View style={styles.miniAvatarCompletedFallback}>
+                            <FontAwesome5 name="paw" size={10} color="#999" />
+                          </View>
                         )}
+
+                        <View>
+                          <Text style={[styles.schedTime, styles.textMuted]}>
+                            {formatTime(task.time)} • {task.pets?.name || 'Pet'}
+                          </Text>
+                          <Text style={[styles.schedDetails, styles.textMuted]}>
+                            {task.taskType === 'Medicine' ? `${task.dosage} • ${task.medicine_name}` : `${task.amount} • ${task.food_type}`}
+                          </Text>
+                        </View>
+                      </View>
+
+                      <TouchableOpacity onPress={() => unmarkAsCompleted(task.id, task.taskType)}>
+                        <View style={styles.checkCircleComplete}>
+                          <FontAwesome5 name="check" size={14} color="#fff" />
+                        </View>
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+               </View>
+            )}
+
+            {/* PENDING / UPCOMING SECTION */}
+            {pendingTasks.length === 0 ? (
+               <View style={styles.allDoneContainer}>
+                  <Text style={styles.allDoneText}>All caught up for today! 🎉</Text>
+               </View>
+            ) : (
+              timeBlocks.map(block => {
+                const blockTasks = groupedTasks[block];
+                const petNames = Object.keys(blockTasks);
+                
+                if (petNames.length === 0) return null;
+    
+                return (
+                  <View key={block} style={styles.mealSection}>
+                    <Text style={styles.mealTitle}>{block}</Text>
+                    
+                    {petNames.map(petName => (
+                      <View key={petName} style={styles.petGroup}>
+                        
+                        <View style={styles.petGroupHeader}>
+                          {blockTasks[petName][0]?.pets?.avatar_url ? (
+                            <Image source={{ uri: blockTasks[petName][0].pets.avatar_url }} style={styles.miniAvatarPetGroup} />
+                          ) : (
+                            <FontAwesome5 name="paw" size={12} color="#999" style={styles.miniAvatarFallback} />
+                          )}
+                          <Text style={styles.petGroupTitle}>{petName}</Text>
+                        </View>
+    
+                        {blockTasks[petName].map((task: any) => (
+                          <View 
+                             key={task.id} 
+                             style={[
+                               styles.scheduleCard, 
+                               task.taskType === 'Medicine' && { borderLeftColor: '#FF9500' }
+                             ]}
+                          >
+                            <View style={styles.scheduleMeta}>
+                              {task.taskType === 'Medicine' && (
+                                <View style={styles.taskIconCircle}>
+                                  <FontAwesome5 name="pills" size={12} color="#FF9500" />
+                                </View>
+                              )}
+                              <View>
+                                <Text style={styles.schedTime}>
+                                  {formatTime(task.time)}
+                                </Text>
+                                <Text style={styles.schedDetails}>
+                                  {task.taskType === 'Medicine' ? `${task.dosage} • ${task.medicine_name}` : `${task.amount} • ${task.food_type}`}
+                                </Text>
+                              </View>
+                            </View>
+    
+                            <TouchableOpacity 
+                              style={styles.checkCircle} 
+                              onPress={() => markAsCompleted(task.id, task.pet_id, task.taskType)}
+                            />
+                          </View>
+                        ))}
                       </View>
                     ))}
                   </View>
-                ))}
-              </View>
-            );
-          })
+                );
+              })
+            )}
+
+          </>
         )}
       </ScrollView>
     </View>
@@ -276,6 +342,22 @@ const styles = StyleSheet.create({
     marginRight: 8,
     marginLeft: 4,
   },
+  miniAvatarCompleted: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    marginRight: 12,
+    opacity: 0.6,
+  },
+  miniAvatarCompletedFallback: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    marginRight: 12,
+    backgroundColor: '#EAEAEA',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   taskIconCircle: {
      width: 28, 
      height: 28, 
@@ -305,6 +387,8 @@ const styles = StyleSheet.create({
   scheduleCardComplete: {
     borderLeftColor: '#EAEAEA',
     backgroundColor: '#F9F9F9',
+    shadowOpacity: 0,
+    elevation: 0,
   },
   scheduleMeta: {
     flexDirection: 'row',
@@ -352,5 +436,29 @@ const styles = StyleSheet.create({
   emptySubtext: {
     fontSize: 14,
     color: '#999',
+  },
+  allDoneContainer: {
+    alignItems: 'center',
+    paddingVertical: 40,
+    backgroundColor: '#F0F8FF',
+    borderRadius: 16,
+    marginBottom: 32,
+  },
+  allDoneText: {
+    fontSize: 18,
+    color: '#007AFF',
+    fontWeight: '600',
+  },
+  completedSection: {
+    marginBottom: 32,
+    borderBottomWidth: 2,
+    borderBottomColor: '#EAEAEA',
+    paddingBottom: 24,
+  },
+  completedTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#999',
+    marginBottom: 16,
   },
 });
