@@ -22,6 +22,11 @@ const ALL_VACCINES = [
   'Feline Leukemia'
 ];
 
+interface VaccineEntry {
+  name: string;
+  date: string;
+}
+
 export default function ModalScreen() {
   const { id } = useLocalSearchParams();
   const isEditing = !!id;
@@ -38,7 +43,9 @@ export default function ModalScreen() {
   const [showBirthdatePicker, setShowBirthdatePicker] = useState(false);
   const [showAdoptionPicker, setShowAdoptionPicker] = useState(false);
   
-  const [selectedVaccines, setSelectedVaccines] = useState<string[]>([]);
+  const [selectedVaccines, setSelectedVaccines] = useState<VaccineEntry[]>([]);
+  const [activeVaccineForDate, setActiveVaccineForDate] = useState<string | null>(null);
+  const [showVaccineDatePicker, setShowVaccineDatePicker] = useState(false);
   
   const [loading, setLoading] = useState(false);
   const [imageUploading, setImageUploading] = useState(false);
@@ -58,7 +65,17 @@ export default function ModalScreen() {
           setAllergies(data.allergies || '');
           setNotes(data.notes || '');
           setAvatarUrl(data.avatar_url || '');
-          setSelectedVaccines(data.vaccines || []);
+          
+          // Parse historical payloads (either raw string array or pipe-delimited)
+          const parsedVaccines = (data.vaccines || []).map((v: string) => {
+             if (v.includes('|')) {
+               const [n, d] = v.split('|');
+               return { name: n, date: d || '' };
+             }
+             return { name: v, date: '' };
+          });
+          setSelectedVaccines(parsedVaccines);
+
           if (data.birthdate) setBirthdate(new Date(data.birthdate));
           if (data.adoption_date) setAdoptionDate(new Date(data.adoption_date));
         } else if (error) {
@@ -71,9 +88,11 @@ export default function ModalScreen() {
   }, [id, isEditing]);
 
   const toggleVaccine = (vaccine: string) => {
-    setSelectedVaccines(prev => 
-      prev.includes(vaccine) ? prev.filter(v => v !== vaccine) : [...prev, vaccine]
-    );
+    setSelectedVaccines(prev => {
+      const exists = prev.find(v => v.name === vaccine);
+      if (exists) return prev.filter(v => v.name !== vaccine);
+      return [...prev, { name: vaccine, date: '' }];
+    });
   };
 
   const pickImage = async () => {
@@ -90,27 +109,20 @@ export default function ModalScreen() {
         setImageUploading(true);
         const image = result.assets[0];
         
-        // Use native base64 from image picker directly
         const base64Str = image.base64;
         if (!base64Str) throw new Error("Could not extract image base64");
         
-        // Generate a clean path inside the "avatars" bucket
         const filePath = `${session.user.id}/${Date.now()}.jpg`;
         const contentType = 'image/jpeg';
         
-        // Upload ArrayBuffer to Supabase
         const { data, error } = await supabase.storage
           .from('avatars')
           .upload(filePath, decode(base64Str), { contentType });
 
-        if (error) {
-          throw error;
-        }
+        if (error) throw error;
 
-        // Retrieve public URL securely
         const { data: publicUrlData } = supabase.storage.from('avatars').getPublicUrl(filePath);
         setAvatarUrl(publicUrlData.publicUrl);
-        
         setImageUploading(false);
       }
     } catch (err: any) {
@@ -131,6 +143,8 @@ export default function ModalScreen() {
       }
       setLoading(true);
       
+      const payloadVaccines = selectedVaccines.map(v => `${v.name}|${v.date}`);
+
       const payload = {
         user_id: session.user.id,
         name: name.trim(),
@@ -138,7 +152,7 @@ export default function ModalScreen() {
         breed: breed.trim(),
         allergies: allergies.trim(),
         notes: notes.trim(),
-        vaccines: selectedVaccines,
+        vaccines: payloadVaccines,
         avatar_url: avatarUrl || null,
         birthdate: birthdate ? birthdate.toISOString().split('T')[0] : null,
         adoption_date: adoptionDate ? adoptionDate.toISOString().split('T')[0] : null,
@@ -185,16 +199,16 @@ export default function ModalScreen() {
       <View style={styles.avatarSection}>
         <TouchableOpacity style={styles.avatarCircle} onPress={pickImage} disabled={imageUploading}>
           {imageUploading ? (
-            <ActivityIndicator color="#007AFF" />
+             <ActivityIndicator color="#007AFF" />
           ) : avatarUrl ? (
-            <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
+             <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
           ) : (
-            <View style={styles.avatarPlaceholder}>
-              <FontAwesome5 name="paw" size={40} color="#999" />
-              <View style={styles.avatarEditBadge}>
-                <FontAwesome5 name="camera" size={12} color="#fff" />
-              </View>
-            </View>
+             <View style={styles.avatarPlaceholder}>
+               <FontAwesome5 name="paw" size={40} color="#999" />
+               <View style={styles.avatarEditBadge}>
+                 <FontAwesome5 name="camera" size={12} color="#fff" />
+               </View>
+             </View>
           )}
         </TouchableOpacity>
         <Text style={styles.avatarHint}>Tap to change photo</Text>
@@ -269,10 +283,10 @@ export default function ModalScreen() {
       </View>
 
       <View style={styles.inputContainer}>
-        <Text style={styles.label}>Vaccines</Text>
+        <Text style={styles.label}>Vaccines & Records</Text>
         <View style={styles.vaccineContainer}>
           {ALL_VACCINES.map(vac => {
-            const isSelected = selectedVaccines.includes(vac);
+            const isSelected = selectedVaccines.some(v => v.name === vac);
             return (
               <TouchableOpacity 
                 key={vac} 
@@ -285,6 +299,54 @@ export default function ModalScreen() {
           })}
         </View>
       </View>
+
+      {selectedVaccines.length > 0 && (
+         <View style={styles.inputContainer}>
+            <Text style={styles.label}>Vaccination Dates</Text>
+            {selectedVaccines.map(sv => (
+               <View key={sv.name} style={styles.vaccineDateRow}>
+                  <Text style={styles.vaccineDateName}>{sv.name}</Text>
+                  <TouchableOpacity 
+                    style={styles.vaccineDateInput} 
+                    onPress={() => {
+                       setActiveVaccineForDate(sv.name);
+                       setShowVaccineDatePicker(true);
+                    }}
+                  >
+                     <Text style={sv.date ? styles.vaccineDateTextSelected : styles.placeholderText}>
+                        {sv.date || 'Set Date'}
+                     </Text>
+                  </TouchableOpacity>
+               </View>
+            ))}
+
+            {showVaccineDatePicker && (
+               <DateTimePicker
+                 value={
+                   activeVaccineForDate && selectedVaccines.find(v => v.name === activeVaccineForDate)?.date 
+                     ? new Date(selectedVaccines.find(v => v.name === activeVaccineForDate)!.date) 
+                     : new Date()
+                 }
+                 mode="date"
+                 display="default"
+                 onChange={(event, date) => {
+                   if (Platform.OS !== 'ios') {
+                      setShowVaccineDatePicker(false);
+                   }
+                   if (date && activeVaccineForDate) {
+                     const dStr = date.toISOString().split('T')[0];
+                     setSelectedVaccines(prev => prev.map(v => v.name === activeVaccineForDate ? { ...v, date: dStr } : v));
+                   }
+                 }}
+               />
+            )}
+            {Platform.OS === 'ios' && showVaccineDatePicker && (
+               <TouchableOpacity style={styles.doneBtn} onPress={() => setShowVaccineDatePicker(false)}>
+                 <Text style={styles.doneBtnText}>Done</Text>
+               </TouchableOpacity>
+            )}
+         </View>
+      )}
 
       <View style={styles.inputContainer}>
         <Text style={styles.label}>Allergies</Text>
@@ -364,7 +426,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 8,
     right: 28,
-    backgroundColor: '#007AFF',
+    backgroundColor: '#111',
     width: 24,
     height: 24,
     borderRadius: 12,
@@ -442,8 +504,8 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   vaccinePillSelected: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
+    backgroundColor: '#111',
+    borderColor: '#111',
   },
   vaccineText: {
     color: '#666',
@@ -453,12 +515,41 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '600',
   },
-  button: {
-    backgroundColor: '#007AFF',
-    padding: 16,
+  vaccineDateRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  vaccineDateName: {
+    fontSize: 16,
+    color: '#111',
+    fontWeight: '500',
+  },
+  vaccineDateInput: {
+    backgroundColor: '#FAFAFA',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#EAEAEA',
+  },
+  vaccineDateTextSelected: {
+    color: '#007AFF',
+    fontWeight: '600',
+  },
+  button: {
+    backgroundColor: '#111',
+    padding: 18,
+    borderRadius: 24,
     alignItems: 'center',
     marginTop: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
   },
   buttonDisabled: {
     opacity: 0.7,
@@ -466,6 +557,6 @@ const styles = StyleSheet.create({
   buttonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
   },
 });

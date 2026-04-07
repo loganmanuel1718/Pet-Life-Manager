@@ -183,11 +183,19 @@ export default function PetDetailScreen() {
             <Text style={styles.label}>Vaccines</Text>
             {pet.vaccines && pet.vaccines.length > 0 ? (
               <View style={styles.tagContainer}>
-                {pet.vaccines.map((vac: string, idx: number) => (
-                  <View key={idx} style={styles.tag}>
-                    <Text style={styles.tagText}>{vac}</Text>
-                  </View>
-                ))}
+                {pet.vaccines.map((vacStr: string, idx: number) => {
+                  const hasDate = vacStr.includes('|');
+                  const vacName = hasDate ? vacStr.split('|')[0] : vacStr;
+                  const vacDate = hasDate ? vacStr.split('|')[1] : '';
+
+                  return (
+                    <View key={idx} style={styles.tag}>
+                      <Text style={styles.tagText}>
+                         {vacName}{vacDate ? ` • ${vacDate}` : ''}
+                      </Text>
+                    </View>
+                  );
+                })}
               </View>
             ) : (
               <Text style={styles.value}>No vaccines logged</Text>
