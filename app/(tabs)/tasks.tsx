@@ -3,7 +3,7 @@ import { StyleSheet, TouchableOpacity, RefreshControl, Image, ScrollView, View }
 import { Text } from '@/components/Themed';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, Link } from 'expo-router';
 import { FontAwesome5 } from '@expo/vector-icons';
 
 export default function TasksTab() {
@@ -14,44 +14,38 @@ export default function TasksTab() {
   const fetchTasks = async () => {
     if (!session?.user?.id) return;
     
-    // Fetch Feeding
-    const { data: feedingSched } = await supabase
-      .from('feeding_schedules')
-      .select('*, pets(name, avatar_url)');
+    // Time Strings
     const now = new Date();
     const localDateString = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
-    const { data: feedingLogs } = await supabase
-      .from('feeding_logs')
-      .select('*')
-      .eq('date', localDateString);
+    // Parallel Sub-Queries
+    const { data: feedingSched } = await supabase.from('feeding_schedules').select('*, pets(name, avatar_url)');
+    const { data: feedingLogs } = await supabase.from('feeding_logs').select('*').eq('date', localDateString);
 
-    // Fetch Medicines
-    const { data: medicineSched } = await supabase
-      .from('medicine_schedules')
-      .select('*, pets(name, avatar_url)');
-    const { data: medicineLogs } = await supabase
-      .from('medicine_logs')
-      .select('*')
-      .eq('date', localDateString);
+    const { data: medicineSched } = await supabase.from('medicine_schedules').select('*, pets(name, avatar_url)');
+    const { data: medicineLogs } = await supabase.from('medicine_logs').select('*').eq('date', localDateString);
+
+    const { data: groomingSched } = await supabase.from('grooming_schedules').select('*, pets(name, avatar_url)');
+    const { data: groomingLogs } = await supabase.from('grooming_logs').select('*').eq('date', localDateString);
+
+    const { data: quickTasks } = await supabase.from('quick_tasks').select('*, pets(name, avatar_url)').eq('due_date', localDateString);
 
     let combinedTasks: any[] = [];
 
     // Map Food
-    if (feedingSched) {
-      combinedTasks = combinedTasks.concat(feedingSched.map(s => ({
-        ...s,
-        taskType: 'Food',
-        is_completed: feedingLogs?.some(l => l.schedule_id === s.id) || false
-      })));
-    }
-
+    if (feedingSched) combinedTasks = combinedTasks.concat(feedingSched.map(s => ({ ...s, taskType: 'Food', is_completed: feedingLogs?.some(l => l.schedule_id === s.id) || false })));
     // Map Medicine
-    if (medicineSched) {
-      combinedTasks = combinedTasks.concat(medicineSched.map(s => ({
-        ...s,
-        taskType: 'Medicine',
-        is_completed: medicineLogs?.some(l => l.schedule_id === s.id) || false
+    if (medicineSched) combinedTasks = combinedTasks.concat(medicineSched.map(s => ({ ...s, taskType: 'Medicine', is_completed: medicineLogs?.some(l => l.schedule_id === s.id) || false })));
+    // Map Grooming
+    if (groomingSched) combinedTasks = combinedTasks.concat(groomingSched.map(s => ({ ...s, taskType: 'Grooming', is_completed: groomingLogs?.some(l => l.schedule_id === s.id) || false })));
+    
+    // Map Quick Tasks
+    if (quickTasks) {
+      combinedTasks = combinedTasks.concat(quickTasks.map(t => ({
+        ...t,
+        time: t.due_time, // Standardize sorting key
+        taskType: 'QuickTask',
+        is_completed: t.is_completed // Pulled straight from the object
       })));
     }
 
@@ -65,66 +59,61 @@ export default function TasksTab() {
     fetchTasks().then(() => setRefreshing(false));
   }, [session]);
 
-  useFocusEffect(
-    useCallback(() => {
-      fetchTasks();
-    }, [session])
-  );
+  useFocusEffect(useCallback(() => { fetchTasks(); }, [session]));
 
   const markAsCompleted = async (taskId: string, petId: string, taskType: string) => {
     if (!session?.user?.id) return;
-    
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, is_completed: true } : t));
+
+    if (taskType === 'QuickTask') {
+       const { error } = await supabase.from('quick_tasks').update({ is_completed: true }).eq('id', taskId);
+       if (error) { fetchTasks(); console.error(error); }
+       return;
+    }
 
     const now = new Date();
     const localDateString = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const payload = { schedule_id: taskId, pet_id: petId, user_id: session.user.id, date: localDateString };
+    
+    let tableName = 'feeding_logs';
+    if (taskType === 'Medicine') tableName = 'medicine_logs';
+    if (taskType === 'Grooming') tableName = 'grooming_logs';
 
-    const payload = {
-      schedule_id: taskId,
-      pet_id: petId,
-      user_id: session.user.id,
-      date: localDateString
-    };
-    
-    const tableName = taskType === 'Food' ? 'feeding_logs' : 'medicine_logs';
     const { error } = await supabase.from(tableName).insert([payload]);
-    
-    if (error) {
-       fetchTasks();
-       console.error(`Failed to execute ${taskType} log`, error);
-    }
+    if (error) fetchTasks();
   };
 
   const unmarkAsCompleted = async (taskId: string, taskType: string) => {
     if (!session?.user?.id) return;
-    
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, is_completed: false } : t));
+
+    if (taskType === 'QuickTask') {
+       const { error } = await supabase.from('quick_tasks').update({ is_completed: false }).eq('id', taskId);
+       if (error) fetchTasks();
+       return;
+    }
 
     const now = new Date();
     const localDateString = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-
-    const tableName = taskType === 'Food' ? 'feeding_logs' : 'medicine_logs';
-    const { error } = await supabase
-      .from(tableName)
-      .delete()
-      .eq('schedule_id', taskId)
-      .eq('date', localDateString);
     
-    if (error) {
-       fetchTasks();
-       console.error(`Failed to remove ${taskType} log`, error);
-    }
+    let tableName = 'feeding_logs';
+    if (taskType === 'Medicine') tableName = 'medicine_logs';
+    if (taskType === 'Grooming') tableName = 'grooming_logs';
+
+    const { error } = await supabase.from(tableName).delete().eq('schedule_id', taskId).eq('date', localDateString);
+    if (error) fetchTasks();
   };
 
   const formatTime = (timeString: string) => {
+    if (!timeString) return '';
     const [h, m] = timeString.split(':');
     const hours = parseInt(h, 10);
-    const ampm = hours >= 12 ? 'PM' : 'AM';
     const hours12 = hours % 12 || 12;
-    return `${hours12}:${m}`; // Removed AM/PM to make it sleek like image 2
+    return `${hours12}:${m}`; 
   };
 
   const formatAMPM = (timeString: string) => {
+    if (!timeString) return '';
     const [h] = timeString.split(':');
     return parseInt(h, 10) >= 12 ? 'pm' : 'am';
   };
@@ -145,7 +134,7 @@ export default function TasksTab() {
     if (hour < 12) meal = 'Morning';
     else if (hour < 17) meal = 'Afternoon';
 
-    const petName = task.pets?.name || 'Unknown Pet';
+    const petName = task.pets?.name || 'Home'; // Fallback to 'Home' for Global Tasks
     
     if (!groupedTasks[meal][petName]) {
       groupedTasks[meal][petName] = [];
@@ -154,8 +143,6 @@ export default function TasksTab() {
   });
 
   const timeBlocks = ['Morning', 'Afternoon', 'Evening'];
-  
-  // Date rendering logic for the Title
   const today = new Date();
   const dayName = today.toLocaleDateString('en-US', { weekday: 'long' });
   const dateSub = today.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
@@ -163,8 +150,15 @@ export default function TasksTab() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>{dayName}</Text>
-        <Text style={styles.subtitle}>{dateSub}</Text>
+        <View style={styles.headerTitles}>
+          <Text style={styles.title}>{dayName}</Text>
+          <Text style={styles.subtitle}>{dateSub}</Text>
+        </View>
+        <Link href="/quick-task-modal" asChild>
+          <TouchableOpacity style={styles.headerAddBtn}>
+             <FontAwesome5 name="plus" size={18} color="#fff" />
+          </TouchableOpacity>
+        </Link>
       </View>
 
       <ScrollView 
@@ -175,11 +169,11 @@ export default function TasksTab() {
         {tasks.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>Nothing scheduled yet.</Text>
-            <Text style={styles.emptySubtext}>Head over to a pet's profile to add tasks.</Text>
+            <Text style={styles.emptySubtext}>Head over to a pet's profile to add routines.</Text>
           </View>
         ) : (
           <>
-            {/* COMPLETED TASKS SECTION - At top */}
+            {/* COMPLETED TASKS SECTION */}
             {completedTasks.length > 0 && (
                <View style={styles.completedSection}>
                   <View style={styles.sectionPill}>
@@ -195,16 +189,19 @@ export default function TasksTab() {
                           <Image source={{ uri: task.pets.avatar_url }} style={styles.miniAvatarCompleted} />
                         ) : (
                           <View style={styles.miniAvatarCompletedFallback}>
-                            <FontAwesome5 name="paw" size={10} color="#999" />
+                            <FontAwesome5 name={task.taskType === 'QuickTask' && !task.pet_id ? 'home' : 'paw'} size={10} color="#999" />
                           </View>
                         )}
 
                         <View>
                           <Text style={[styles.schedTime, styles.textMuted]}>
-                            {formatTime(task.time)}<Text style={styles.ampm}>{formatAMPM(task.time)}</Text> • {task.pets?.name || 'Pet'}
+                            {formatTime(task.time)}<Text style={styles.ampm}>{formatAMPM(task.time)}</Text> • {task.pets?.name || 'Home'}
                           </Text>
                           <Text style={[styles.schedDetails, styles.textMuted]}>
-                            {task.taskType === 'Medicine' ? `${task.dosage} • ${task.medicine_name}` : `${task.amount} • ${task.food_type}`}
+                            {task.taskType === 'Food' && `${task.amount} • ${task.food_type}`}
+                            {task.taskType === 'Medicine' && `${task.dosage} • ${task.medicine_name}`}
+                            {task.taskType === 'Grooming' && task.activity}
+                            {task.taskType === 'QuickTask' && `${task.category} • ${task.title}`}
                           </Text>
                         </View>
                       </View>
@@ -251,37 +248,45 @@ export default function TasksTab() {
                           {blockTasks[petName][0]?.pets?.avatar_url ? (
                             <Image source={{ uri: blockTasks[petName][0].pets.avatar_url }} style={styles.miniAvatarPetGroup} />
                           ) : (
-                            <FontAwesome5 name="paw" size={12} color="#999" style={styles.miniAvatarFallback} />
+                            <FontAwesome5 name={petName === 'Home' ? 'home' : 'paw'} size={12} color="#999" style={styles.miniAvatarFallback} />
                           )}
                           <Text style={styles.petGroupTitle}>{petName}</Text>
                         </View>
     
-                        {blockTasks[petName].map((task: any) => (
-                          <View key={task.id} style={styles.scheduleCard}>
-                            <View style={styles.scheduleMeta}>
-                              <View style={[styles.taskIconCircle, task.taskType === 'Medicine' && { backgroundColor: '#F2E8FB' }]}>
-                                {task.taskType === 'Medicine' ? (
-                                    <FontAwesome5 name="pills" size={14} color="#9C51E0" />
-                                ) : (
-                                    <FontAwesome5 name="bone" size={14} color="#007AFF" />
-                                )}
+                        {blockTasks[petName].map((task: any) => {
+                           let bgCol = '#E5F1FF';
+                           let icnCol = '#007AFF';
+                           let icnNode = 'bone';
+                           if (task.taskType === 'Medicine') { bgCol = '#F2E8FB'; icnCol = '#9C51E0'; icnNode = 'pills'; }
+                           if (task.taskType === 'Grooming') { bgCol = '#E5FAEE'; icnCol = '#34C759'; icnNode = 'bath'; }
+                           if (task.taskType === 'QuickTask') { bgCol = '#FFF0E5'; icnCol = '#FF9500'; icnNode = 'clipboard-list'; }
+
+                           return (
+                            <View key={task.id} style={styles.scheduleCard}>
+                              <View style={styles.scheduleMeta}>
+                                <View style={[styles.taskIconCircle, { backgroundColor: bgCol }]}>
+                                   <FontAwesome5 name={icnNode} size={14} color={icnCol} />
+                                </View>
+                                <View>
+                                  <Text style={styles.schedTime}>
+                                    {task.taskType === 'Food' && task.food_type}
+                                    {task.taskType === 'Medicine' && task.medicine_name}
+                                    {task.taskType === 'Grooming' && task.activity}
+                                    {task.taskType === 'QuickTask' && task.title}
+                                  </Text>
+                                  <Text style={styles.schedDetails}>
+                                     {formatTime(task.time)}{formatAMPM(task.time)} • {task.taskType === 'Medicine' ? task.dosage : (task.amount || task.category || '')}
+                                  </Text>
+                                </View>
                               </View>
-                              <View>
-                                <Text style={styles.schedTime}>
-                                  {task.taskType === 'Medicine' ? task.medicine_name : task.food_type}
-                                </Text>
-                                <Text style={styles.schedDetails}>
-                                   {formatTime(task.time)}{formatAMPM(task.time)} • {task.taskType === 'Medicine' ? task.dosage : task.amount}
-                                </Text>
-                              </View>
+      
+                              <TouchableOpacity 
+                                style={styles.checkCircle} 
+                                onPress={() => markAsCompleted(task.id, task.pet_id, task.taskType)}
+                              />
                             </View>
-    
-                            <TouchableOpacity 
-                              style={styles.checkCircle} 
-                              onPress={() => markAsCompleted(task.id, task.pet_id, task.taskType)}
-                            />
-                          </View>
-                        ))}
+                           );
+                        })}
                       </View>
                     ))}
                   </View>
@@ -302,14 +307,31 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9F9FB', // soft Apple background
   },
   header: {
-    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 24,
     paddingTop: 70,
     paddingBottom: 24,
     backgroundColor: '#F9F9FB',
   },
+  headerTitles: {
+    justifyContent: 'center',
+  },
+  headerAddBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#111',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+  },
   title: {
     fontSize: 38,
-    fontWeight: '800', // Heavy Apple Typography
+    fontWeight: '800',
     color: '#111',
     letterSpacing: -1,
     marginBottom: 4,
@@ -321,7 +343,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 20,
-    paddingBottom: 150, // Extra padding for new floating tab bar
+    paddingBottom: 150, 
   },
   sectionPill: {
     flexDirection: 'row',
@@ -329,7 +351,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF',
     paddingHorizontal: 16,
     paddingVertical: 10,
-    borderRadius: 20, // heavy pill calculation
+    borderRadius: 20, 
     alignSelf: 'flex-start',
     marginBottom: 16,
     shadowColor: '#000',
@@ -392,7 +414,6 @@ const styles = StyleSheet.create({
      width: 44, 
      height: 44, 
      borderRadius: 22, 
-     backgroundColor: '#E5F1FF', // Soft pastel blue
      justifyContent: 'center', 
      alignItems: 'center', 
      marginRight: 16 
@@ -402,15 +423,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: '#fff',
-    borderRadius: 24, // High capsule shape
+    borderRadius: 24, 
     padding: 16,
     marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05, // very soft shadow everywhere
+    shadowOpacity: 0.05,
     shadowRadius: 15,
     elevation: 2,
-    borderWidth: 0, // removed sharp border lines completely
+    borderWidth: 0, 
   },
   scheduleCardComplete: {
     backgroundColor: '#F9F9F9',
@@ -442,13 +463,13 @@ const styles = StyleSheet.create({
   },
   textMuted: {
     color: '#999',
-    textDecorationLine: 'line-through', // strikethrough for completed
+    textDecorationLine: 'line-through',
   },
   checkCircle: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    borderWidth: 2.5, // bold circle outline
+    borderWidth: 2.5, 
     borderColor: '#D1D1D6',
     backgroundColor: '#fff',
   },

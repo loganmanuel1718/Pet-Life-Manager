@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Image } from 'react-native';
 import { Text, View } from '@/components/Themed';
-import { useLocalSearchParams, useRouter, useFocusEffect, Stack } from 'expo-router';
+import { useLocalSearchParams, useRouter, useFocusEffect, Stack, Link } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { FontAwesome5 } from '@expo/vector-icons';
@@ -20,7 +20,7 @@ export default function PetDetailScreen() {
     
     const { data, error } = await supabase
       .from('pets')
-      .select('*, feeding_schedules(*), medicine_schedules(*)')
+      .select('*, feeding_schedules(*), medicine_schedules(*), grooming_schedules(*)')
       .eq('id', id)
       .single();
 
@@ -91,6 +91,25 @@ export default function PetDetailScreen() {
           style: "destructive", 
           onPress: async () => {
             const { error } = await supabase.from('medicine_schedules').delete().eq('id', medicineId);
+            if (error) Alert.alert('Error', error.message);
+            else fetchPet();
+          }
+        }
+      ]
+    );
+  };
+
+  const handleDeleteGrooming = (scheduleId: string) => {
+    Alert.alert(
+      "Remove Routine",
+      "Remove this grooming routine?",
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Remove", 
+          style: "destructive", 
+          onPress: async () => {
+            const { error } = await supabase.from('grooming_schedules').delete().eq('id', scheduleId);
             if (error) Alert.alert('Error', error.message);
             else fetchPet();
           }
@@ -246,6 +265,38 @@ export default function PetDetailScreen() {
           ) : (
             <Text style={styles.value}>No medicines scheduled.</Text>
           )}
+        </View>
+
+        {/* GROOMING SCHEDULES */}
+        <View style={styles.card}>
+          <Text style={styles.title}>Daily Grooming</Text>
+          
+          {pet.grooming_schedules && pet.grooming_schedules.length > 0 ? (
+            pet.grooming_schedules.map((schedule: any) => (
+              <View key={schedule.id} style={styles.scheduleRow}>
+                <View style={styles.scheduleMeta}>
+                  <View style={[styles.taskIconCircle, { backgroundColor: '#E5FAEE' }]}>
+                    <FontAwesome5 name="bath" size={14} color="#34C759" />
+                  </View>
+                  <View>
+                    <Text style={styles.scheduleTime}>{formatTime(schedule.time)}</Text>
+                    <Text style={styles.scheduleType}>{schedule.activity}</Text>
+                  </View>
+                </View>
+                <TouchableOpacity onPress={() => handleDeleteGrooming(schedule.id)}>
+                  <FontAwesome5 name="trash" size={16} color="#FF3B30" />
+                </TouchableOpacity>
+              </View>
+            ))
+          ) : (
+            <Text style={styles.emptyText}>No grooming routines added yet.</Text>
+          )}
+
+          <Link href={`/grooming-modal?pet_id=${id}`} asChild>
+            <TouchableOpacity style={{ marginTop: 12 }}>
+              <Text style={styles.addText}>+ Add Routine</Text>
+            </TouchableOpacity>
+          </Link>
         </View>
 
         <View style={styles.buttonContainer}>
@@ -417,17 +468,38 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
+    borderBottomColor: '#f0f0f0',
     width: '100%',
   },
   scheduleTime: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '700',
     color: '#333',
-    marginBottom: 4,
+  },
+  scheduleType: {
+    fontSize: 14,
+    color: '#666',
   },
   scheduleDetails: {
     fontSize: 14,
     color: '#666',
+    marginTop: 2,
+  },
+  scheduleMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  taskIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  emptyText: {
+    color: '#999',
+    fontStyle: 'italic',
+    marginTop: 8,
   },
 });
