@@ -8,6 +8,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { useThemeContext } from '../contexts/ThemeContext';
 import Colors from '../constants/Colors';
+import * as Notifications from 'expo-notifications';
 
 export default function QuickTaskModalScreen() {
   const router = useRouter();
@@ -64,6 +65,22 @@ export default function QuickTaskModalScreen() {
       };
 
       const { error } = await supabase.from('quick_tasks').insert([payload]);
+
+      // Natively schedule a buzzing Push Notification for the exact time requested!
+      if (!error && datetime.getTime() > new Date().getTime()) {
+        try {
+          await Notifications.scheduleNotificationAsync({
+            content: {
+              title: selectedPet ? 'Pet Life Target' : 'Household Task',
+              body: `It is currently time for: ${title.trim()}`,
+              sound: true,
+            },
+            trigger: datetime as any,
+          });
+        } catch (e) {
+          console.log("Push Error:", e);
+        }
+      }
 
       setLoading(false);
 
