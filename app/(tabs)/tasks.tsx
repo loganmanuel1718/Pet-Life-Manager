@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useFocusEffect, Link } from 'expo-router';
 import { FontAwesome5 } from '@expo/vector-icons';
+import Animated, { FadeInUp, FadeInDown, LinearTransition, Layout } from 'react-native-reanimated';
 
 export default function TasksTab() {
   const { session } = useAuth();
@@ -259,9 +260,10 @@ export default function TasksTab() {
          </ScrollView>
       </View>
 
-      <ScrollView 
+      <Animated.ScrollView 
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        layout={LinearTransition.springify()}
       >
 
         {tasks.length === 0 ? (
@@ -289,7 +291,7 @@ export default function TasksTab() {
                 if (block === 'Evening') { iconName = 'moon'; iconColor = '#5856D6'; }
     
                 return (
-                  <View key={block} style={styles.mealSection}>
+                  <Animated.View key={block} style={styles.mealSection} layout={LinearTransition.springify()}>
                     <TouchableOpacity 
                       style={styles.sectionPill} 
                       onPress={() => toggleSection(block)}
@@ -308,7 +310,7 @@ export default function TasksTab() {
                     </TouchableOpacity>
                     
                     {!collapsedSections[block] && petNames.map(petName => (
-                      <View key={petName} style={styles.petGroup}>
+                      <Animated.View key={petName} style={styles.petGroup} layout={LinearTransition.springify()} entering={FadeInUp.duration(300)}>
                         
                         <View style={styles.petGroupHeader}>
                           {blockTasks[petName][0]?.pets?.avatar_url ? (
@@ -328,7 +330,12 @@ export default function TasksTab() {
                            if (task.taskType === 'QuickTask') { bgCol = '#FFF0E5'; icnCol = '#FF9500'; icnNode = 'clipboard-list'; }
 
                            return (
-                            <View key={task.id} style={styles.scheduleCard}>
+                            <Animated.View 
+                              key={`t-${task.id}`} 
+                              style={styles.scheduleCard}
+                              entering={FadeInDown.duration(400).delay(50)}
+                              layout={LinearTransition.springify()}
+                            >
                               <View style={styles.scheduleMeta}>
                                 <View style={[styles.taskIconCircle, { backgroundColor: bgCol }]}>
                                    <FontAwesome5 name={icnNode} size={14} color={icnCol} />
@@ -350,12 +357,12 @@ export default function TasksTab() {
                                 style={styles.checkCircle} 
                                 onPress={() => markAsCompleted(task.id, task.pet_id, task.taskType)}
                               />
-                            </View>
+                            </Animated.View>
                            );
                         })}
-                      </View>
+                      </Animated.View>
                     ))}
-                  </View>
+                  </Animated.View>
                 );
               })
             )}
@@ -369,7 +376,12 @@ export default function TasksTab() {
                   </View>
                   
                   {completedTasks.map(task => (
-                    <View key={task.id} style={[styles.scheduleCard, styles.scheduleCardComplete, { marginLeft: 0 }]}>
+                    <Animated.View 
+                      key={`comp-${task.id}`} 
+                      style={[styles.scheduleCard, styles.scheduleCardComplete, { marginLeft: 0 }]}
+                      entering={FadeInDown.duration(300)}
+                      layout={LinearTransition.springify()}
+                    >
                       <View style={styles.scheduleMeta}>
                         
                         {task.pets?.avatar_url ? (
@@ -398,14 +410,14 @@ export default function TasksTab() {
                           <FontAwesome5 name="check" size={12} color="#fff" />
                         </View>
                       </TouchableOpacity>
-                    </View>
+                    </Animated.View>
                   ))}
                </View>
             )}
 
           </>
         )}
-      </ScrollView>
+      </Animated.ScrollView>
     </View>
   );
 }
