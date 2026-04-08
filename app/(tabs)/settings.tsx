@@ -7,6 +7,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { useThemeContext } from '../../contexts/ThemeContext';
 import Colors from '../../constants/Colors';
+import * as Crypto from 'expo-crypto';
 
 export default function SettingsTab() {
   const { session } = useAuth();
@@ -99,13 +100,43 @@ export default function SettingsTab() {
          Alert.alert(
             'Household Merged!', 
             'You are now sharing pets and tasks with your partner!',
-            [{ text: 'Awesome', onPress: () => router.replace('/') }]
+            [{ text: 'Awesome', onPress: () => { fetchOrGenerateProfile(); router.replace('/'); } }]
          );
       }
     } catch(e: any) {
       setIsJoining(false);
       Alert.alert('Exception', e.message);
     }
+  };
+
+  const handleLeaveHousehold = () => {
+    Alert.alert(
+      "Leave Household",
+      "Are you sure you want to leave your current household? You will lose access to shared pets until you join a new one.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Leave", 
+          style: "destructive", 
+          onPress: async () => {
+            setLoading(true);
+            const newHouseholdId = Crypto.randomUUID();
+            const { error: resetError } = await supabase
+               .from('profiles')
+               .update({ household_id: newHouseholdId })
+               .eq('user_id', session!.user.id);
+            
+            if (resetError) {
+               Alert.alert("Error", resetError.message);
+               setLoading(false);
+            } else {
+               fetchOrGenerateProfile();
+               Alert.alert("Household Left", "You are now managing a private household schedule.");
+            }
+          }
+        }
+      ]
+    );
   };
 
   if (loading) {
@@ -174,6 +205,10 @@ export default function SettingsTab() {
 
          <TouchableOpacity style={[styles.shareButton, { backgroundColor: colors.tint }]} onPress={handleShareCode}>
             <Text style={styles.shareButtonText}>Share Code</Text>
+         </TouchableOpacity>
+
+         <TouchableOpacity onPress={handleLeaveHousehold} style={{ marginTop: 24, alignItems: 'center' }}>
+            <Text style={{ color: '#FF3B30', fontSize: 14, fontWeight: '700' }}>Leave Household</Text>
          </TouchableOpacity>
       </View>
 
