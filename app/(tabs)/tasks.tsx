@@ -11,6 +11,15 @@ export default function TasksTab() {
   const [tasks, setTasks] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({
+    Morning: false,
+    Afternoon: false,
+    Evening: false,
+  });
+
+  const toggleSection = (block: string) => {
+    setCollapsedSections(prev => ({ ...prev, [block]: !prev[block] }));
+  };
   
   // Create a 30-day rolling window around today
   const [dateWindow] = useState(() => Array.from({ length: 31 }, (_, i) => {
@@ -281,12 +290,24 @@ export default function TasksTab() {
     
                 return (
                   <View key={block} style={styles.mealSection}>
-                    <View style={styles.sectionPill}>
+                    <TouchableOpacity 
+                      style={styles.sectionPill} 
+                      onPress={() => toggleSection(block)}
+                      activeOpacity={0.7}
+                    >
                       <FontAwesome5 name={iconName} size={14} color={iconColor} />
-                      <Text style={styles.sectionPillText}>{block.toUpperCase()} ({Object.values(blockTasks).flat().length})</Text>
-                    </View>
+                      <Text style={styles.sectionPillText}>
+                         {block.toUpperCase()} ({Object.values(blockTasks).flat().length})
+                      </Text>
+                      <FontAwesome5 
+                        name={collapsedSections[block] ? "chevron-down" : "chevron-up"} 
+                        size={10} 
+                        color="#999" 
+                        style={{ marginLeft: 8 }} 
+                      />
+                    </TouchableOpacity>
                     
-                    {petNames.map(petName => (
+                    {!collapsedSections[block] && petNames.map(petName => (
                       <View key={petName} style={styles.petGroup}>
                         
                         <View style={styles.petGroupHeader}>
