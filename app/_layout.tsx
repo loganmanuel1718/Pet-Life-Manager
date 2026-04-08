@@ -5,9 +5,9 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
-
 import { useColorScheme } from '@/components/useColorScheme';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
+import { ThemeProvider as AppThemeProvider, useThemeContext } from '../contexts/ThemeContext';
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -47,7 +47,7 @@ export default function RootLayout() {
 }
 
 function ProtectedLayout() {
-  const colorScheme = useColorScheme();
+  const { colorScheme } = useThemeContext();
   const { session, isLoading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
@@ -84,8 +84,10 @@ function ProtectedLayout() {
 
 function RootLayoutNav() {
   return (
-    <AuthProvider>
-      <ProtectedLayout />
-    </AuthProvider>
+    <AppThemeProvider>
+      <AuthProvider>
+        <ProtectedLayout />
+      </AuthProvider>
+    </AppThemeProvider>
   );
 }

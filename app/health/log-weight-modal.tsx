@@ -5,11 +5,15 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { useThemeContext } from '../../contexts/ThemeContext';
+import Colors from '../../constants/Colors';
 
 export default function LogWeightModalScreen() {
   const { pet_id } = useLocalSearchParams();
   const router = useRouter();
   const { session } = useAuth();
+  const { colorScheme } = useThemeContext();
+  const colors = Colors[colorScheme ?? 'light'];
   
   const [weight, setWeight] = useState('');
   const [date, setDate] = useState<Date>(new Date());
@@ -58,14 +62,15 @@ export default function LogWeightModalScreen() {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-      <Text style={styles.title}>Log Weight</Text>
+    <ScrollView contentContainerStyle={[styles.container, { backgroundColor: colors.background }]} keyboardShouldPersistTaps="handled">
+      <Text style={[styles.title, { color: colors.text }]}>Log Weight</Text>
 
       <View style={styles.inputContainer}>
-        <Text style={styles.label}>Weight (kg)</Text>
+        <Text style={[styles.label, { color: colors.text }]}>Weight (kg)</Text>
         <TextInput 
-          style={styles.input} 
+          style={[styles.input, { backgroundColor: colors.highlight, color: colors.text, borderColor: colors.border }]} 
           placeholder="e.g. 14.5" 
+          placeholderTextColor={colors.mutedText}
           value={weight} 
           onChangeText={setWeight} 
           keyboardType="decimal-pad"
@@ -73,9 +78,9 @@ export default function LogWeightModalScreen() {
       </View>
 
       <View style={styles.inputContainer}>
-        <Text style={styles.label}>Date of Weigh-In</Text>
-        <TouchableOpacity style={styles.dateInput} onPress={() => setShowDatePicker(true)}>
-          <Text style={styles.dateText}>
+        <Text style={[styles.label, { color: colors.text }]}>Date of Weigh-In</Text>
+        <TouchableOpacity style={[styles.dateInput, { backgroundColor: colors.highlight, borderColor: colors.border }]} onPress={() => setShowDatePicker(true)}>
+          <Text style={[styles.dateText, { color: colors.text }]}>
             {date.toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' })}
           </Text>
         </TouchableOpacity>
@@ -93,27 +98,28 @@ export default function LogWeightModalScreen() {
         )}
         {Platform.OS === 'ios' && showDatePicker && (
            <TouchableOpacity style={styles.doneBtn} onPress={() => setShowDatePicker(false)}>
-             <Text style={styles.doneBtnText}>Done</Text>
+             <Text style={[styles.doneBtnText, { color: colors.tint }]}>Done</Text>
            </TouchableOpacity>
         )}
       </View>
 
       <View style={styles.inputContainer}>
-        <Text style={styles.label}>Notes (Optional)</Text>
+        <Text style={[styles.label, { color: colors.text }]}>Notes (Optional)</Text>
         <TextInput 
-          style={styles.input} 
+          style={[styles.input, { backgroundColor: colors.highlight, color: colors.text, borderColor: colors.border }]} 
           placeholder="e.g. Vet checkup, changed diet" 
+          placeholderTextColor={colors.mutedText}
           value={notes} 
           onChangeText={setNotes} 
         />
       </View>
 
       <TouchableOpacity 
-        style={[styles.button, loading && styles.buttonDisabled]} 
+        style={[styles.button, { backgroundColor: colors.text }, loading && styles.buttonDisabled]} 
         onPress={handleSaveWeight}
         disabled={loading}
       >
-        <Text style={styles.buttonText}>
+        <Text style={[styles.buttonText, { color: colors.background }]}>
           {loading ? 'Logging...' : 'Save Record'}
         </Text>
       </TouchableOpacity>

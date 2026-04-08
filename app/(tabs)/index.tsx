@@ -1,11 +1,12 @@
-import { useState, useCallback } from 'react';
-import { StyleSheet, FlatList, TouchableOpacity, RefreshControl, Image, ScrollView, View } from 'react-native';
 import { Text } from '@/components/Themed';
-import { supabase } from '../../lib/supabase';
-import { useAuth } from '../../contexts/AuthContext';
-import { useRouter, useFocusEffect } from 'expo-router';
 import { FontAwesome5 } from '@expo/vector-icons';
-import Animated, { FadeInDown, LinearTransition } from 'react-native-reanimated';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
+import { Image, RefreshControl, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../lib/supabase';
+import { useThemeContext } from '../../contexts/ThemeContext';
+import Colors from '../../constants/Colors';
 
 type Pet = {
   id: string;
@@ -18,18 +19,21 @@ type Pet = {
 export default function PetDashboard() {
   const { session } = useAuth();
   const router = useRouter();
+  const { colorScheme } = useThemeContext();
+  const colors = Colors[colorScheme ?? 'light'];
+
   const [pets, setPets] = useState<Pet[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchPets = async () => {
     if (!session?.user?.id) return;
-    
+
     // Fetch Pets
     const { data: petsData } = await supabase
       .from('pets')
       .select('*')
       .order('created_at', { ascending: false });
-      
+
     if (petsData) setPets(petsData);
   };
 
@@ -49,60 +53,53 @@ export default function PetDashboard() {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Pet Life</Text>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.header, { backgroundColor: colors.background }]}>
+        <Text style={[styles.title, { color: colors.text }]}>Pet Life</Text>
         <TouchableOpacity onPress={handleSignOut}>
           <Text style={styles.signOutText}>Sign Out</Text>
         </TouchableOpacity>
       </View>
 
-      <Animated.ScrollView 
+      <ScrollView
         contentContainerStyle={styles.scrollContent}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        layout={LinearTransition.springify()}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.tint} />}
       >
-        
+
         {/* My Pets Roster Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>My Pets</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>My Pets</Text>
           {pets.length === 0 ? (
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>You haven't added any pets yet.</Text>
+              <Text style={[styles.emptyText, { color: colors.text }]}>You haven't added any pets yet.</Text>
             </View>
           ) : (
-            pets.map((item, index) => (
-              <Animated.View 
-                 key={item.id} 
-                 entering={FadeInDown.duration(400).delay(index * 100)} 
-                 layout={LinearTransition.springify()}
-              >
-                <TouchableOpacity onPress={() => router.push(`/pet/${item.id}`)}>
-                  <View style={styles.petCard}>
-                    {item.avatar_url ? (
-                      <Image source={{ uri: item.avatar_url }} style={styles.petAvatar} />
-                    ) : (
-                      <View style={styles.petAvatarPlaceholder}>
-                        <FontAwesome5 name="paw" size={20} color="#999" />
-                      </View>
-                    )}
-                    <View style={styles.petInfo}>
-                      <Text style={styles.petName}>{item.name}</Text>
-                      <Text style={styles.petDetails}>
-                        {item.species || 'Unknown Species'} {item.breed ? `• ${item.breed}` : ''}
-                      </Text>
+            pets.map(item => (
+              <TouchableOpacity key={item.id} onPress={() => router.push(`/pet/${item.id}`)}>
+                <View style={[styles.petCard, { backgroundColor: colors.surface, shadowColor: colorScheme === 'dark' ? '#fff' : '#000' }]}>
+                  {item.avatar_url ? (
+                    <Image source={{ uri: item.avatar_url }} style={styles.petAvatar} />
+                  ) : (
+                    <View style={[styles.petAvatarPlaceholder, { backgroundColor: colors.pillPrimary }]}>
+                      <FontAwesome5 name="paw" size={20} color={colors.mutedText} />
                     </View>
+                  )}
+                  <View style={styles.petInfo}>
+                    <Text style={[styles.petName, { color: colors.text }]}>{item.name}</Text>
+                    <Text style={[styles.petDetails, { color: colors.mutedText }]}>
+                      {item.species || 'Unknown Species'} {item.breed ? `• ${item.breed}` : ''}
+                    </Text>
                   </View>
-                </TouchableOpacity>
-              </Animated.View>
+                </View>
+              </TouchableOpacity>
             ))
           )}
         </View>
 
-      </Animated.ScrollView>
+      </ScrollView>
 
-      <TouchableOpacity style={styles.fab} onPress={() => router.push('/modal')}>
-        <Text style={styles.fabText}>+ Add Pet</Text>
+      <TouchableOpacity style={[styles.fab, { backgroundColor: colors.text }]} onPress={() => router.push('/modal')}>
+        <Text style={[styles.fabText, { color: colors.background }]}>+ Add Pet</Text>
       </TouchableOpacity>
     </View>
   );

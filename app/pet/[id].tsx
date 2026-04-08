@@ -5,11 +5,15 @@ import { useLocalSearchParams, useRouter, useFocusEffect, Stack, Link } from 'ex
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { FontAwesome5 } from '@expo/vector-icons';
+import { useThemeContext } from '../../contexts/ThemeContext';
+import Colors from '../../constants/Colors';
 
 export default function PetDetailScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const { session } = useAuth();
+  const { colorScheme } = useThemeContext();
+  const colors = Colors[colorScheme ?? 'light'];
   
   const [pet, setPet] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -120,8 +124,8 @@ export default function PetDetailScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.container, styles.centered]}>
-        <ActivityIndicator size="large" color="#007AFF" />
+      <View style={[styles.container, styles.centered, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.tint} />
       </View>
     );
   }
@@ -146,41 +150,41 @@ export default function PetDetailScreen() {
           headerBackTitle: 'Back',
         }} 
       />
-      <ScrollView contentContainerStyle={styles.container}>
+      <ScrollView contentContainerStyle={[styles.container, { backgroundColor: colors.background }]}>
         
         {/* Avatar Hero Header */}
         <View style={styles.heroContainer}>
           {pet.avatar_url ? (
-            <Image source={{ uri: pet.avatar_url }} style={styles.heroImage} />
+            <Image source={{ uri: pet.avatar_url }} style={[styles.heroImage, { borderColor: colors.background }]} />
           ) : (
-            <View style={styles.heroPlaceholder}>
-              <FontAwesome5 name="paw" size={60} color="#999" />
+            <View style={[styles.heroPlaceholder, { backgroundColor: colors.pillPrimary, borderColor: colors.background }]}>
+              <FontAwesome5 name="paw" size={60} color={colors.mutedText} />
             </View>
           )}
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.name}>{pet.name}</Text>
-          <Text style={styles.speciesInfo}>
+        <View style={[styles.card, { backgroundColor: colors.surface, shadowColor: colorScheme === 'dark' ? '#fff' : '#000' }]}>
+          <Text style={[styles.name, { color: colors.text }]}>{pet.name}</Text>
+          <Text style={[styles.speciesInfo, { color: colors.mutedText }]}>
             {pet.species || 'Unknown Species'} {pet.breed ? `• ${pet.breed}` : ''}
           </Text>
 
-          <View style={styles.divider} />
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
           <View style={styles.infoRow}>
-            <Text style={styles.label}>Birthdate</Text>
-            <Text style={styles.value}>{pet.birthdate || 'Not specified'}</Text>
+            <Text style={[styles.label, { color: colors.text }]}>Birthdate</Text>
+            <Text style={[styles.value, { color: colors.mutedText }]}>{pet.birthdate || 'Not specified'}</Text>
           </View>
           
           <View style={styles.infoRow}>
-            <Text style={styles.label}>Adoption Date</Text>
-            <Text style={styles.value}>{pet.adoption_date || 'Not specified'}</Text>
+            <Text style={[styles.label, { color: colors.text }]}>Adoption Date</Text>
+            <Text style={[styles.value, { color: colors.mutedText }]}>{pet.adoption_date || 'Not specified'}</Text>
           </View>
 
-          <View style={styles.divider} />
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
           <View style={styles.section}>
-            <Text style={styles.label}>Vaccines</Text>
+            <Text style={[styles.label, { color: colors.text }]}>Vaccines</Text>
             {pet.vaccines && pet.vaccines.length > 0 ? (
               <View style={styles.tagContainer}>
                 {pet.vaccines.map((vacStr: string, idx: number) => {
@@ -189,8 +193,8 @@ export default function PetDetailScreen() {
                   const vacDate = hasDate ? vacStr.split('|')[1] : '';
 
                   return (
-                    <View key={idx} style={styles.tag}>
-                      <Text style={styles.tagText}>
+                    <View key={idx} style={[styles.tag, { backgroundColor: colors.highlight }]}>
+                      <Text style={[styles.tagText, { color: colors.tint }]}>
                          {vacName}{vacDate ? ` • ${vacDate}` : ''}
                       </Text>
                     </View>
@@ -198,38 +202,38 @@ export default function PetDetailScreen() {
                 })}
               </View>
             ) : (
-              <Text style={styles.value}>No vaccines logged</Text>
+              <Text style={[styles.value, { color: colors.mutedText }]}>No vaccines logged</Text>
             )}
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.label}>Allergies</Text>
-            <Text style={styles.value}>{pet.allergies || 'None recorded'}</Text>
+            <Text style={[styles.label, { color: colors.text }]}>Allergies</Text>
+            <Text style={[styles.value, { color: colors.mutedText }]}>{pet.allergies || 'None recorded'}</Text>
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.label}>Notes</Text>
-            <Text style={styles.value}>{pet.notes || 'No extra notes'}</Text>
+            <Text style={[styles.label, { color: colors.text }]}>Notes</Text>
+            <Text style={[styles.value, { color: colors.mutedText }]}>{pet.notes || 'No extra notes'}</Text>
           </View>
         </View>
 
-        <View style={styles.card}>
+        <View style={[styles.card, { backgroundColor: colors.surface, shadowColor: colorScheme === 'dark' ? '#fff' : '#000' }]}>
           <View style={[styles.infoRow, { alignItems: 'center' }]}>
-            <Text style={[styles.title, { marginBottom: 0 }]}>Feeding Schedules</Text>
+            <Text style={[styles.title, { marginBottom: 0, color: colors.text }]}>Feeding Schedules</Text>
             <TouchableOpacity onPress={() => router.push(`/feeding-modal?pet_id=${pet.id}`)}>
-              <Text style={styles.addText}>+ Add</Text>
+              <Text style={[styles.addText, { color: colors.tint }]}>+ Add</Text>
             </TouchableOpacity>
           </View>
           <View style={{ height: 16 }} />
           
           {pet.feeding_schedules && pet.feeding_schedules.length > 0 ? (
             pet.feeding_schedules.sort((a: any, b: any) => a.time.localeCompare(b.time)).map((sched: any) => (
-              <View key={sched.id} style={styles.scheduleRow}>
+              <View key={sched.id} style={[styles.scheduleRow, { borderBottomColor: colors.border }]}>
                 <View>
-                  <Text style={styles.scheduleTime}>
+                  <Text style={[styles.scheduleTime, { color: colors.text }]}>
                     {formatTime(sched.time)}
                   </Text>
-                  <Text style={styles.scheduleDetails}>{sched.amount} • {sched.food_type}</Text>
+                  <Text style={[styles.scheduleDetails, { color: colors.mutedText }]}>{sched.amount} • {sched.food_type}</Text>
                 </View>
                 <TouchableOpacity onPress={() => handleDeleteSchedule(sched.id)}>
                    <FontAwesome5 name="trash" size={16} color="#FF3B30" />
@@ -237,32 +241,32 @@ export default function PetDetailScreen() {
               </View>
             ))
           ) : (
-            <Text style={styles.value}>No schedules set yet.</Text>
+            <Text style={[styles.value, { color: colors.mutedText }]}>No schedules set yet.</Text>
           )}
         </View>
 
         {/* Medicine Schedules Block */}
-        <View style={styles.card}>
+        <View style={[styles.card, { backgroundColor: colors.surface, shadowColor: colorScheme === 'dark' ? '#fff' : '#000' }]}>
           <View style={[styles.infoRow, { alignItems: 'center' }]}>
-            <Text style={[styles.title, { marginBottom: 0 }]}>Medications</Text>
+            <Text style={[styles.title, { marginBottom: 0, color: colors.text }]}>Medications</Text>
             <TouchableOpacity onPress={() => router.push(`/medicine-modal?pet_id=${pet.id}`)}>
-              <Text style={styles.addText}>+ Add</Text>
+              <Text style={[styles.addText, { color: colors.tint }]}>+ Add</Text>
             </TouchableOpacity>
           </View>
           <View style={{ height: 16 }} />
           
           {pet.medicine_schedules && pet.medicine_schedules.length > 0 ? (
             pet.medicine_schedules.sort((a: any, b: any) => a.time.localeCompare(b.time)).map((med: any) => (
-              <View key={med.id} style={styles.scheduleRow}>
+              <View key={med.id} style={[styles.scheduleRow, { borderBottomColor: colors.border }]}>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#E5F1FF', justifyContent: 'center', alignItems: 'center', marginRight: 12 }}>
                     <FontAwesome5 name="pills" size={12} color="#007AFF" />
                   </View>
                   <View>
-                    <Text style={styles.scheduleTime}>
+                    <Text style={[styles.scheduleTime, { color: colors.text }]}>
                       {formatTime(med.time)}
                     </Text>
-                    <Text style={styles.scheduleDetails}>{med.dosage} • {med.medicine_name}</Text>
+                    <Text style={[styles.scheduleDetails, { color: colors.mutedText }]}>{med.dosage} • {med.medicine_name}</Text>
                   </View>
                 </View>
                 <TouchableOpacity onPress={() => handleDeleteMedicine(med.id)}>
@@ -271,24 +275,24 @@ export default function PetDetailScreen() {
               </View>
             ))
           ) : (
-            <Text style={styles.value}>No medicines scheduled.</Text>
+            <Text style={[styles.value, { color: colors.mutedText }]}>No medicines scheduled.</Text>
           )}
         </View>
 
         {/* GROOMING SCHEDULES */}
-        <View style={styles.card}>
-          <Text style={styles.title}>Daily Grooming</Text>
+        <View style={[styles.card, { backgroundColor: colors.surface, shadowColor: colorScheme === 'dark' ? '#fff' : '#000' }]}>
+          <Text style={[styles.title, { color: colors.text }]}>Daily Grooming</Text>
           
           {pet.grooming_schedules && pet.grooming_schedules.length > 0 ? (
             pet.grooming_schedules.map((schedule: any) => (
-              <View key={schedule.id} style={styles.scheduleRow}>
+              <View key={schedule.id} style={[styles.scheduleRow, { borderBottomColor: colors.border }]}>
                 <View style={styles.scheduleMeta}>
                   <View style={[styles.taskIconCircle, { backgroundColor: '#E5FAEE' }]}>
                     <FontAwesome5 name="bath" size={14} color="#34C759" />
                   </View>
                   <View>
-                    <Text style={styles.scheduleTime}>{formatTime(schedule.time)}</Text>
-                    <Text style={styles.scheduleType}>{schedule.activity}</Text>
+                    <Text style={[styles.scheduleTime, { color: colors.text }]}>{formatTime(schedule.time)}</Text>
+                    <Text style={[styles.scheduleType, { color: colors.mutedText }]}>{schedule.activity}</Text>
                   </View>
                 </View>
                 <TouchableOpacity onPress={() => handleDeleteGrooming(schedule.id)}>
@@ -297,30 +301,30 @@ export default function PetDetailScreen() {
               </View>
             ))
           ) : (
-            <Text style={styles.emptyText}>No grooming routines added yet.</Text>
+            <Text style={[styles.emptyText, { color: colors.mutedText }]}>No grooming routines added yet.</Text>
           )}
 
           <Link href={`/grooming-modal?pet_id=${id}`} asChild>
             <TouchableOpacity style={{ marginTop: 12 }}>
-              <Text style={styles.addText}>+ Add Routine</Text>
+              <Text style={[styles.addText, { color: colors.tint }]}>+ Add Routine</Text>
             </TouchableOpacity>
           </Link>
         </View>
 
         <View style={styles.buttonContainer}>
           <TouchableOpacity 
-            style={[styles.button, styles.healthButton]}
+            style={[styles.button, styles.healthButton, { backgroundColor: colors.highlight, borderColor: colors.border }]}
             onPress={() => router.push(`/health/${pet.id}`)}
           >
-            <FontAwesome5 name="heartbeat" size={16} color="#007AFF" style={{marginRight: 8}} />
-            <Text style={[styles.buttonText, styles.healthButtonText]}>Health Hub</Text>
+            <FontAwesome5 name="heartbeat" size={16} color={colors.tint} style={{marginRight: 8}} />
+            <Text style={[styles.buttonText, styles.healthButtonText, { color: colors.tint }]}>Health Hub</Text>
           </TouchableOpacity>
 
           <TouchableOpacity 
-            style={[styles.button, styles.editButton]} 
+            style={[styles.button, styles.editButton, { backgroundColor: colors.text }]} 
             onPress={() => router.push(`/modal?id=${pet.id}`)}
           >
-            <Text style={[styles.buttonText, styles.editButtonText]}>Edit Profile</Text>
+            <Text style={[styles.buttonText, styles.editButtonText, { color: colors.background }]}>Edit Profile</Text>
           </TouchableOpacity>
 
           <TouchableOpacity 

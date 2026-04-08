@@ -5,6 +5,8 @@ import { useLocalSearchParams, useRouter, useFocusEffect, Stack, Link } from 'ex
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { FontAwesome5 } from '@expo/vector-icons';
+import { useThemeContext } from '../../contexts/ThemeContext';
+import Colors from '../../constants/Colors';
 
 const SEVERITY_LEVELS = [
   { level: 0, label: 'None', color: '#34C759' }, // Green
@@ -17,6 +19,8 @@ export default function PetHealthScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const { session } = useAuth();
+  const { colorScheme } = useThemeContext();
+  const colors = Colors[colorScheme ?? 'light'];
   
   const [pet, setPet] = useState<any>(null);
   const [weightLogs, setWeightLogs] = useState<any[]>([]);
@@ -88,8 +92,8 @@ export default function PetHealthScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.container, styles.centered]}>
-        <ActivityIndicator size="large" color="#007AFF" />
+      <View style={[styles.container, styles.centered, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.tint} />
       </View>
     );
   }
@@ -107,26 +111,26 @@ export default function PetHealthScreen() {
           headerBackTitle: 'Back',
         }} 
       />
-      <ScrollView contentContainerStyle={styles.container}>
+      <ScrollView contentContainerStyle={[styles.container, { backgroundColor: colors.background }]}>
         
         {/* WEIGHT ENGINE */}
-        <Text style={styles.title}>Weight Tracking</Text>
-        <View style={styles.card}>
+        <Text style={[styles.title, { color: colors.text }]}>Weight Tracking</Text>
+        <View style={[styles.card, { backgroundColor: colors.surface, shadowColor: colorScheme === 'dark' ? '#fff' : '#000' }]}>
           {weightLogs.length === 0 ? (
             <View style={styles.emptyChart}>
-               <FontAwesome5 name="weight" size={32} color="#D1D1D6" style={{marginBottom: 12}} />
-               <Text style={styles.emptyText}>No weight data yet.</Text>
-               <Text style={styles.emptySubText}>Log a weigh-in to render the chart.</Text>
+               <FontAwesome5 name="weight" size={32} color={colors.mutedText} style={{marginBottom: 12}} />
+               <Text style={[styles.emptyText, { color: colors.text }]}>No weight data yet.</Text>
+               <Text style={[styles.emptySubText, { color: colors.mutedText }]}>Log a weigh-in to render the chart.</Text>
             </View>
           ) : (
             <>
               <View style={styles.chartHeader}>
-                <Text style={styles.chartHeaderLabel}>Latest Weight</Text>
-                <Text style={styles.chartHeaderValue}>{weightLogs[weightLogs.length - 1].weight} <Text style={{fontSize: 16, color: '#8E8E93'}}>kg</Text></Text>
+                <Text style={[styles.chartHeaderLabel, { color: colors.mutedText }]}>Latest Weight</Text>
+                <Text style={[styles.chartHeaderValue, { color: colors.text }]}>{weightLogs[weightLogs.length - 1].weight} <Text style={{fontSize: 16, color: colors.mutedText}}>kg</Text></Text>
               </View>
 
               {/* CSS Flexbox Bar Chart */}
-              <View style={styles.chartContainer}>
+              <View style={[styles.chartContainer, { borderBottomColor: colors.border }]}>
                 {displayLogs.map((log, index) => {
                   const heightPct = Math.max(2, (log.weight / maxRenderWeight) * 100); 
                   const isLatest = index === displayLogs.length - 1;
@@ -137,14 +141,14 @@ export default function PetHealthScreen() {
                       <View style={styles.chartBarWrapper}>
                         <View style={[
                           styles.chartBar, 
-                          { height: `${heightPct}%` },
-                          isLatest && styles.chartBarLatest 
+                          { height: `${heightPct}%`, backgroundColor: colors.pillPrimary },
+                          isLatest && { backgroundColor: colors.tint } 
                         ]} />
                       </View>
-                      <Text style={[styles.chartDateLabel, isLatest && styles.chartDateLabelLatest]}>
+                      <Text style={[styles.chartDateLabel, { color: colors.mutedText }, isLatest && { color: colors.text }]}>
                          {dateObj.getMonth() + 1}/{dateObj.getDate()}
                       </Text>
-                      <Text style={[styles.chartWeightLabel, isLatest && styles.chartWeightLabelLatest]}>
+                      <Text style={[styles.chartWeightLabel, { color: colors.mutedText }, isLatest && { color: colors.tint }]}>
                          {log.weight}
                       </Text>
                     </View>
@@ -154,25 +158,26 @@ export default function PetHealthScreen() {
             </>
           )}
 
-          <Link href={`/health/log-weight-modal?pet_id=${id}`} asChild>
-            <TouchableOpacity style={styles.logButton}>
-              <FontAwesome5 name="plus" size={12} color="#fff" style={{marginRight: 8}} />
-              <Text style={styles.logButtonText}>Log Weight</Text>
-            </TouchableOpacity>
-          </Link>
+          <TouchableOpacity 
+            style={[styles.logButton, { backgroundColor: colors.tint }]}
+            onPress={() => router.push(`/health/log-weight-modal?pet_id=${id}`)}
+          >
+            <FontAwesome5 name="plus" size={12} color="#FFFFFF" style={{marginRight: 8}} />
+            <Text style={[styles.logButtonText, { color: '#FFFFFF' }]}>Log Weight</Text>
+          </TouchableOpacity>
         </View>
 
         {weightLogs.length > 0 && (
-          <View style={styles.listCard}>
-            <Text style={styles.listTitle}>Weight History</Text>
+          <View style={[styles.listCard, { backgroundColor: colors.surface, shadowColor: colorScheme === 'dark' ? '#fff' : '#000' }]}>
+            <Text style={[styles.listTitle, { color: colors.text }]}>Weight History</Text>
             {weightLogs.slice().reverse().map((log, i) => {
                const d = new Date(log.date);
                return (
-                 <View key={log.id} style={[styles.historyRow, i === weightLogs.length - 1 && { borderBottomWidth: 0 }]}>
+                 <View key={log.id} style={[styles.historyRow, { borderBottomColor: colors.border }, i === weightLogs.length - 1 && { borderBottomWidth: 0 }]}>
                     <View>
-                       <Text style={styles.historyWeight}>{log.weight} kg</Text>
-                       <Text style={styles.historyDate}>{d.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}</Text>
-                       {!!log.notes && <Text style={styles.historyNotes}>{log.notes}</Text>}
+                       <Text style={[styles.historyWeight, { color: colors.text }]}>{log.weight} kg</Text>
+                       <Text style={[styles.historyDate, { color: colors.mutedText }]}>{d.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}</Text>
+                       {!!log.notes && <Text style={[styles.historyNotes, { color: colors.mutedText }]}>{log.notes}</Text>}
                     </View>
                     <TouchableOpacity onPress={() => handleDeleteLog(log.id)}>
                        <FontAwesome5 name="trash" size={14} color="#FF3B30" />
@@ -184,18 +189,18 @@ export default function PetHealthScreen() {
         )}
 
         {/* ALLERGY ENGINE */}
-        <Text style={[styles.title, { marginTop: 12 }]}>Allergy Diary</Text>
-        <View style={styles.card}>
+        <Text style={[styles.title, { marginTop: 12, color: colors.text }]}>Allergy Diary</Text>
+        <View style={[styles.card, { backgroundColor: colors.surface, shadowColor: colorScheme === 'dark' ? '#fff' : '#000' }]}>
           {allergyLogs.length === 0 ? (
             <View style={styles.emptyChart}>
-               <FontAwesome5 name="allergies" size={32} color="#D1D1D6" style={{marginBottom: 12}} />
-               <Text style={styles.emptyText}>No allergy reactions tracked.</Text>
-               <Text style={styles.emptySubText}>Log an episode to establish a baseline.</Text>
+               <FontAwesome5 name="allergies" size={32} color={colors.mutedText} style={{marginBottom: 12}} />
+               <Text style={[styles.emptyText, { color: colors.text }]}>No allergy reactions tracked.</Text>
+               <Text style={[styles.emptySubText, { color: colors.mutedText }]}>Log an episode to establish a baseline.</Text>
             </View>
           ) : (
             <>
               <View style={styles.chartHeader}>
-                <Text style={styles.chartHeaderLabel}>Latest Reaction</Text>
+                <Text style={[styles.chartHeaderLabel, { color: colors.mutedText }]}>Latest Reaction</Text>
                 {(() => {
                   const latestLog = allergyLogs[0];
                   const latestMeta = SEVERITY_LEVELS.find(s => s.level === latestLog.severity) || SEVERITY_LEVELS[0];
@@ -208,7 +213,7 @@ export default function PetHealthScreen() {
               </View>
 
               {/* Allergy CSS Bar Chart */}
-              <View style={[styles.chartContainer, { height: 140 }]}>
+              <View style={[styles.chartContainer, { height: 140, borderBottomColor: colors.border }]}>
                 {allergyLogs.slice(0, 8).reverse().map((log, index, arr) => {
                   const severityMeta = SEVERITY_LEVELS.find(s => s.level === log.severity) || SEVERITY_LEVELS[0];
                   // Calculate height visually based on 0-3 scale. (0 = 10%, 1=40%, 2=70%, 3=100%)
@@ -224,7 +229,7 @@ export default function PetHealthScreen() {
                           { height: `${heightPct}%`, backgroundColor: severityMeta.color, opacity: isLatest ? 1 : 0.6 }
                         ]} />
                       </View>
-                      <Text style={[styles.chartDateLabel, isLatest && styles.chartDateLabelLatest]}>
+                      <Text style={[styles.chartDateLabel, { color: colors.mutedText }, isLatest && { color: colors.text }]}>
                          {dateObj.getMonth() + 1}/{dateObj.getDate()}
                       </Text>
                     </View>
@@ -238,16 +243,16 @@ export default function PetHealthScreen() {
                     const d = new Date(log.date);
                     
                     return (
-                       <View key={log.id} style={[styles.historyRow, i === allergyLogs.length - 1 && { borderBottomWidth: 0 }]}>
+                       <View key={log.id} style={[styles.historyRow, { borderBottomColor: colors.border }, i === allergyLogs.length - 1 && { borderBottomWidth: 0 }]}>
                           <View style={{ flexDirection: 'row', flex: 1, paddingRight: 10 }}>
                              <View style={[styles.colorDot, { backgroundColor: severityMeta.color }]} />
                              <View style={{ flex: 1 }}>
                                 <Text style={[styles.historyWeight, { color: severityMeta.color }]}>
                                   {severityMeta.label}
                                 </Text>
-                                <Text style={styles.historyDate}>{d.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}</Text>
+                                <Text style={[styles.historyDate, { color: colors.mutedText }]}>{d.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}</Text>
                                 {(log.symptoms || log.notes) && (
-                                   <Text style={styles.historyNotes}>
+                                   <Text style={[styles.historyNotes, { color: colors.mutedText }]}>
                                       {log.symptoms ? `Symptoms: ${log.symptoms}` : ''}
                                       {log.symptoms && log.notes ? '\n' : ''}
                                       {log.notes ? `Notes: ${log.notes}` : ''}
@@ -265,12 +270,13 @@ export default function PetHealthScreen() {
             </>
           )}
 
-          <Link href={`/health/log-allergy-modal?pet_id=${id}`} asChild>
-            <TouchableOpacity style={styles.logButton}>
-              <FontAwesome5 name="plus" size={12} color="#fff" style={{marginRight: 8}} />
-              <Text style={styles.logButtonText}>Log Reaction</Text>
-            </TouchableOpacity>
-          </Link>
+          <TouchableOpacity 
+            style={[styles.logButton, { backgroundColor: colors.tint }]}
+            onPress={() => router.push(`/health/log-allergy-modal?pet_id=${id}`)}
+          >
+            <FontAwesome5 name="plus" size={12} color="#FFFFFF" style={{marginRight: 8}} />
+            <Text style={[styles.logButtonText, { color: '#FFFFFF' }]}>Log Reaction</Text>
+          </TouchableOpacity>
         </View>
 
       </ScrollView>

@@ -5,10 +5,14 @@ import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { FontAwesome5 } from '@expo/vector-icons';
+import { useThemeContext } from '../../contexts/ThemeContext';
+import Colors from '../../constants/Colors';
 
 export default function SettingsTab() {
   const { session } = useAuth();
   const router = useRouter();
+  const { themeMode, setThemeMode, colorScheme } = useThemeContext();
+  const colors = Colors[colorScheme ?? 'light'];
   
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<any>(null);
@@ -106,51 +110,88 @@ export default function SettingsTab() {
 
   if (loading) {
     return (
-      <View style={[styles.container, styles.centered]}>
-        <ActivityIndicator size="large" color="#007AFF" />
+      <View style={[styles.container, styles.centered, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.tint} />
       </View>
     );
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-      <Text style={styles.title}>Settings</Text>
+    <ScrollView contentContainerStyle={[styles.container, { backgroundColor: colors.background }]} keyboardShouldPersistTaps="handled">
+      <Text style={[styles.title, { color: colors.text }]}>Settings</Text>
 
-      <View style={styles.card}>
+      {/* Theme Toggle Module */}
+      <View style={[styles.card, { backgroundColor: colors.surface, shadowColor: colorScheme === 'dark' ? '#fff' : '#000' }]}>
          <View style={styles.headerBlock}>
-            <View style={styles.iconCircle}>
-               <FontAwesome5 name="home" size={20} color="#007AFF" />
+            <View style={[styles.iconCircle, { backgroundColor: colors.pillPrimary }]}>
+               <FontAwesome5 name="moon" size={20} color={colors.tint} />
             </View>
-            <Text style={styles.cardTitle}>My Household</Text>
+            <Text style={[styles.cardTitle, { color: colors.text }]}>Display Theme</Text>
+         </View>
+         <Text style={styles.cardDesc}>
+            Choose between Light Mode, Dark Mode, or having Pet Life match your phone's system settings automatically.
+         </Text>
+
+         <View style={styles.themeToggleRow}>
+            {(['system', 'light', 'dark'] as const).map(mode => {
+               const isActive = themeMode === mode;
+               return (
+                 <TouchableOpacity 
+                   key={mode} 
+                   onPress={() => setThemeMode(mode)}
+                   style={[
+                     styles.themeSegment, 
+                     isActive ? { backgroundColor: colors.tint } : { backgroundColor: colors.highlight }
+                   ]}
+                 >
+                   <Text style={[
+                     styles.themeSegmentText,
+                     isActive ? { color: '#fff' } : { color: colors.text }
+                   ]}>
+                     {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                   </Text>
+                 </TouchableOpacity>
+               );
+            })}
+         </View>
+      </View>
+
+      <View style={[styles.card, { backgroundColor: colors.surface, shadowColor: colorScheme === 'dark' ? '#fff' : '#000' }]}>
+         <View style={styles.headerBlock}>
+            <View style={[styles.iconCircle, { backgroundColor: colors.pillPrimary }]}>
+               <FontAwesome5 name="home" size={20} color={colors.tint} />
+            </View>
+            <Text style={[styles.cardTitle, { color: colors.text }]}>My Household</Text>
          </View>
          <Text style={styles.cardDesc}>
             Share your unique code with a partner or roommate to allow them to co-parent your pets. Your tasks, medical logs, and schedules will instantly sync across phones.
          </Text>
 
-         <View style={styles.codeContainer}>
+         <View style={[styles.codeContainer, { backgroundColor: colors.highlight, borderColor: colors.border }]}>
             <Text style={styles.codeLabel}>YOUR INVITE CODE</Text>
-            <Text style={styles.codeValue}>{profile?.invite_code || '------'}</Text>
+            <Text style={[styles.codeValue, { color: colors.text }]}>{profile?.invite_code || '------'}</Text>
          </View>
 
-         <TouchableOpacity style={styles.shareButton} onPress={handleShareCode}>
+         <TouchableOpacity style={[styles.shareButton, { backgroundColor: colors.tint }]} onPress={handleShareCode}>
             <Text style={styles.shareButtonText}>Share Code</Text>
          </TouchableOpacity>
       </View>
 
-      <View style={styles.card}>
+      <View style={[styles.card, { backgroundColor: colors.surface, shadowColor: colorScheme === 'dark' ? '#fff' : '#000' }]}>
          <View style={styles.headerBlock}>
-            <View style={[styles.iconCircle, { backgroundColor: '#F2E8FB' }]}>
+            <View style={[styles.iconCircle, { backgroundColor: colorScheme === 'dark' ? '#3B2A56' : '#F2E8FB' }]}>
                <FontAwesome5 name="users" size={18} color="#9C51E0" />
             </View>
-            <Text style={styles.cardTitle}>Join a Household</Text>
+            <Text style={[styles.cardTitle, { color: colors.text }]}>Join a Household</Text>
          </View>
          <Text style={styles.cardDesc}>
             If your partner has already set up the pets on their phone, enter their 6-digit code here to link your accounts.
          </Text>
 
          <TextInput 
-            style={styles.input} 
+            style={[styles.input, { backgroundColor: colors.highlight, borderColor: colors.border, color: colors.text }]} 
             placeholder="e.g. A7B9X2" 
+            placeholderTextColor={colors.mutedText}
             value={joinCode} 
             onChangeText={setJoinCode} 
             autoCapitalize="characters"
@@ -158,16 +199,16 @@ export default function SettingsTab() {
          />
 
          <TouchableOpacity 
-            style={[styles.joinButton, isJoining && { opacity: 0.7 }]} 
+            style={[styles.joinButton, { backgroundColor: colors.text }, isJoining && { opacity: 0.7 }]} 
             onPress={handleJoinHousehold}
             disabled={isJoining}
          >
             {isJoining ? (
-               <ActivityIndicator color="#fff" />
+               <ActivityIndicator color={colors.surface} />
             ) : (
                <>
-                  <FontAwesome5 name="link" size={14} color="#fff" style={{marginRight: 8}} />
-                  <Text style={styles.joinButtonText}>Connect Accounts</Text>
+                  <FontAwesome5 name="link" size={14} color={colors.surface} style={{marginRight: 8}} />
+                  <Text style={[styles.joinButtonText, { color: colors.surface }]}>Connect Accounts</Text>
                </>
             )}
          </TouchableOpacity>
@@ -212,6 +253,23 @@ const styles = StyleSheet.create({
     elevation: 3,
     marginBottom: 24,
   },
+  themeToggleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginTop: 8,
+  },
+  themeSegment: {
+    flex: 1,
+    paddingVertical: 12,
+    marginHorizontal: 4,
+    borderRadius: 16,
+    alignItems: 'center',
+  },
+  themeSegmentText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
   headerBlock: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -221,7 +279,6 @@ const styles = StyleSheet.create({
      width: 44,
      height: 44,
      borderRadius: 22,
-     backgroundColor: '#E5F1FF',
      justifyContent: 'center',
      alignItems: 'center',
      marginRight: 12,

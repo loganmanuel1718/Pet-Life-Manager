@@ -4,6 +4,8 @@ import { Text } from '@/components/Themed';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useThemeContext } from '../contexts/ThemeContext';
+import Colors from '../constants/Colors';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { FontAwesome5 } from '@expo/vector-icons';
 
@@ -30,6 +32,8 @@ interface VaccineEntry {
 export default function ModalScreen() {
   const { id } = useLocalSearchParams();
   const isEditing = !!id;
+  const { colorScheme } = useThemeContext();
+  const colors = Colors[colorScheme ?? 'light'];
 
   const [name, setName] = useState('');
   const [species, setSpecies] = useState('');
@@ -182,59 +186,77 @@ export default function ModalScreen() {
 
   if (fetching) {
     return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color="#007AFF" />
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.tint} />
       </View>
     );
   }
 
   return (
     <ScrollView 
-      contentContainerStyle={styles.container}
+      contentContainerStyle={[styles.container, { backgroundColor: colors.background }]}
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={styles.title}>{isEditing ? 'Edit Pet Profile' : 'Add a New Pet'}</Text>
+      <Text style={[styles.title, { color: colors.text }]}>{isEditing ? 'Edit Pet Profile' : 'Add a New Pet'}</Text>
 
       {/* Avatar Picker Section */}
       <View style={styles.avatarSection}>
-        <TouchableOpacity style={styles.avatarCircle} onPress={pickImage} disabled={imageUploading}>
+        <TouchableOpacity style={[styles.avatarCircle, { backgroundColor: colors.pillPrimary, borderColor: colors.border }]} onPress={pickImage} disabled={imageUploading}>
           {imageUploading ? (
-             <ActivityIndicator color="#007AFF" />
+             <ActivityIndicator color={colors.tint} />
           ) : avatarUrl ? (
              <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
           ) : (
              <View style={styles.avatarPlaceholder}>
-               <FontAwesome5 name="paw" size={40} color="#999" />
-               <View style={styles.avatarEditBadge}>
-                 <FontAwesome5 name="camera" size={12} color="#fff" />
+               <FontAwesome5 name="paw" size={40} color={colors.mutedText} />
+               <View style={[styles.avatarEditBadge, { backgroundColor: colors.text, borderColor: colors.background }]}>
+                 <FontAwesome5 name="camera" size={12} color={colors.background} />
                </View>
              </View>
           )}
         </TouchableOpacity>
-        <Text style={styles.avatarHint}>Tap to change photo</Text>
+        <Text style={[styles.avatarHint, { color: colors.mutedText }]}>Tap to change photo</Text>
       </View>
       
       <View style={styles.inputContainer}>
-        <Text style={styles.label}>Name *</Text>
-        <TextInput style={styles.input} placeholder="e.g. Bella" value={name} onChangeText={setName} />
+        <Text style={[styles.label, { color: colors.text }]}>Name *</Text>
+        <TextInput 
+          style={[styles.input, { backgroundColor: colors.highlight, color: colors.text, borderColor: colors.border }]} 
+          placeholder="e.g. Bella" 
+          placeholderTextColor={colors.mutedText} 
+          value={name} 
+          onChangeText={setName} 
+        />
       </View>
 
       <View style={styles.row}>
         <View style={[styles.inputContainer, { flex: 1, marginRight: 8 }]}>
-          <Text style={styles.label}>Species</Text>
-          <TextInput style={styles.input} placeholder="e.g. Dog" value={species} onChangeText={setSpecies} />
+          <Text style={[styles.label, { color: colors.text }]}>Species</Text>
+          <TextInput 
+            style={[styles.input, { backgroundColor: colors.highlight, color: colors.text, borderColor: colors.border }]} 
+            placeholder="e.g. Dog" 
+            placeholderTextColor={colors.mutedText} 
+            value={species} 
+            onChangeText={setSpecies} 
+          />
         </View>
         <View style={[styles.inputContainer, { flex: 1, marginLeft: 8 }]}>
-          <Text style={styles.label}>Breed</Text>
-          <TextInput style={styles.input} placeholder="e.g. Golden Retriever" value={breed} onChangeText={setBreed} />
+          <Text style={[styles.label, { color: colors.text }]}>Breed</Text>
+          <TextInput 
+            style={[styles.input, { backgroundColor: colors.highlight, color: colors.text, borderColor: colors.border }]} 
+            placeholder="e.g. Golden Retriever" 
+            placeholderTextColor={colors.mutedText} 
+            value={breed} 
+            onChangeText={setBreed} 
+          />
         </View>
       </View>
 
       <View style={styles.row}>
         <View style={[styles.inputContainer, { flex: 1, marginRight: 8 }]}>
-          <Text style={styles.label}>Birthdate</Text>
-          <TouchableOpacity style={styles.dateInput} onPress={() => setShowBirthdatePicker(true)}>
-            <Text style={birthdate ? styles.dateText : styles.placeholderText}>
+          <Text style={[styles.label, { color: colors.text }]}>Birthdate</Text>
+          <TouchableOpacity style={[styles.dateInput, { backgroundColor: colors.highlight, borderColor: colors.border }]} onPress={() => setShowBirthdatePicker(true)}>
+            <Text style={birthdate ? [styles.dateText, { color: colors.text }] : [styles.placeholderText, { color: colors.mutedText }]}>
               {birthdate ? birthdate.toISOString().split('T')[0] : 'Select Date'}
             </Text>
           </TouchableOpacity>
@@ -249,17 +271,17 @@ export default function ModalScreen() {
               }}
             />
           )}
-          {Platform.OS === 'ios' && showBirthdatePicker && (
-             <TouchableOpacity style={styles.doneBtn} onPress={() => setShowBirthdatePicker(false)}>
-               <Text style={styles.doneBtnText}>Done</Text>
-             </TouchableOpacity>
+          {showBirthdatePicker && Platform.OS === 'ios' && (
+            <TouchableOpacity style={styles.doneBtn} onPress={() => setShowBirthdatePicker(false)}>
+              <Text style={[styles.doneBtnText, { color: colors.tint }]}>Done</Text>
+            </TouchableOpacity>
           )}
         </View>
 
         <View style={[styles.inputContainer, { flex: 1, marginLeft: 8 }]}>
-          <Text style={styles.label}>Adoption Date</Text>
-          <TouchableOpacity style={styles.dateInput} onPress={() => setShowAdoptionPicker(true)}>
-            <Text style={adoptionDate ? styles.dateText : styles.placeholderText}>
+          <Text style={[styles.label, { color: colors.text }]}>Adoption Day</Text>
+          <TouchableOpacity style={[styles.dateInput, { backgroundColor: colors.highlight, borderColor: colors.border }]} onPress={() => setShowAdoptionPicker(true)}>
+            <Text style={adoptionDate ? [styles.dateText, { color: colors.text }] : [styles.placeholderText, { color: colors.mutedText }]}>
               {adoptionDate ? adoptionDate.toISOString().split('T')[0] : 'Select Date'}
             </Text>
           </TouchableOpacity>
@@ -274,26 +296,26 @@ export default function ModalScreen() {
               }}
             />
           )}
-          {Platform.OS === 'ios' && showAdoptionPicker && (
-             <TouchableOpacity style={styles.doneBtn} onPress={() => setShowAdoptionPicker(false)}>
-               <Text style={styles.doneBtnText}>Done</Text>
-             </TouchableOpacity>
+          {showAdoptionPicker && Platform.OS === 'ios' && (
+            <TouchableOpacity style={styles.doneBtn} onPress={() => setShowAdoptionPicker(false)}>
+              <Text style={[styles.doneBtnText, { color: colors.tint }]}>Done</Text>
+            </TouchableOpacity>
           )}
         </View>
       </View>
 
       <View style={styles.inputContainer}>
-        <Text style={styles.label}>Vaccines & Records</Text>
+        <Text style={[styles.label, { color: colors.text }]}>Vaccines & Records</Text>
         <View style={styles.vaccineContainer}>
           {ALL_VACCINES.map(vac => {
             const isSelected = selectedVaccines.some(v => v.name === vac);
             return (
               <TouchableOpacity 
                 key={vac} 
-                style={[styles.vaccinePill, isSelected && styles.vaccinePillSelected]}
+                style={[styles.vaccinePill, { backgroundColor: colors.highlight, borderColor: colors.border }, isSelected && { backgroundColor: colors.text, borderColor: colors.text }]}
                 onPress={() => toggleVaccine(vac)}
               >
-                <Text style={[styles.vaccineText, isSelected && styles.vaccineTextSelected]}>{vac}</Text>
+                <Text style={[styles.vaccineText, { color: colors.text }, isSelected && { color: colors.background, fontWeight: '600' }]}>{vac}</Text>
               </TouchableOpacity>
             );
           })}
@@ -302,18 +324,18 @@ export default function ModalScreen() {
 
       {selectedVaccines.length > 0 && (
          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Vaccination Dates</Text>
+            <Text style={[styles.label, { color: colors.text }]}>Vaccination Dates</Text>
             {selectedVaccines.map(sv => (
-               <View key={sv.name} style={styles.vaccineDateRow}>
-                  <Text style={styles.vaccineDateName}>{sv.name}</Text>
+               <View key={sv.name} style={[styles.vaccineDateRow, { borderBottomColor: colors.border }]}>
+                  <Text style={[styles.vaccineDateName, { color: colors.text }]}>{sv.name}</Text>
                   <TouchableOpacity 
-                    style={styles.vaccineDateInput} 
+                    style={[styles.vaccineDateInput, { backgroundColor: colors.highlight, borderColor: colors.border }]} 
                     onPress={() => {
                        setActiveVaccineForDate(sv.name);
                        setShowVaccineDatePicker(true);
                     }}
                   >
-                     <Text style={sv.date ? styles.vaccineDateTextSelected : styles.placeholderText}>
+                     <Text style={sv.date ? [styles.vaccineDateTextSelected, { color: colors.tint }] : [styles.placeholderText, { color: colors.mutedText }]}>
                         {sv.date || 'Set Date'}
                      </Text>
                   </TouchableOpacity>
@@ -342,27 +364,29 @@ export default function ModalScreen() {
             )}
             {Platform.OS === 'ios' && showVaccineDatePicker && (
                <TouchableOpacity style={styles.doneBtn} onPress={() => setShowVaccineDatePicker(false)}>
-                 <Text style={styles.doneBtnText}>Done</Text>
+                 <Text style={[styles.doneBtnText, { color: colors.tint }]}>Done</Text>
                </TouchableOpacity>
             )}
          </View>
       )}
 
       <View style={styles.inputContainer}>
-        <Text style={styles.label}>Allergies</Text>
+        <Text style={[styles.label, { color: colors.text }]}>Allergies</Text>
         <TextInput 
-          style={styles.input} 
+          style={[styles.input, { backgroundColor: colors.highlight, color: colors.text, borderColor: colors.border }]} 
           placeholder="e.g. Peanuts, Chicken" 
+          placeholderTextColor={colors.mutedText}
           value={allergies} 
           onChangeText={setAllergies} 
         />
       </View>
 
       <View style={styles.inputContainer}>
-        <Text style={styles.label}>Notes</Text>
+        <Text style={[styles.label, { color: colors.text }]}>Notes</Text>
         <TextInput 
-          style={[styles.input, styles.textArea]} 
+          style={[styles.input, styles.textArea, { backgroundColor: colors.highlight, color: colors.text, borderColor: colors.border }]} 
           placeholder="Any special quirks or information?" 
+          placeholderTextColor={colors.mutedText}
           value={notes} 
           onChangeText={setNotes} 
           multiline 
@@ -371,11 +395,11 @@ export default function ModalScreen() {
       </View>
 
       <TouchableOpacity 
-        style={[styles.button, loading && styles.buttonDisabled]} 
+        style={[styles.button, { backgroundColor: colors.text }, loading && styles.buttonDisabled]} 
         onPress={handleSavePet}
         disabled={loading}
       >
-        <Text style={styles.buttonText}>
+        <Text style={[styles.buttonText, { color: colors.background }]}>
           {loading ? 'Saving...' : 'Save Pet'}
         </Text>
       </TouchableOpacity>

@@ -5,6 +5,8 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { useThemeContext } from '../../contexts/ThemeContext';
+import Colors from '../../constants/Colors';
 
 const SEVERITY_LEVELS = [
   { level: 0, label: 'None', color: '#34C759', description: 'No signs of itching or redness.' },
@@ -17,6 +19,8 @@ export default function LogAllergyModalScreen() {
   const { pet_id } = useLocalSearchParams();
   const router = useRouter();
   const { session } = useAuth();
+  const { colorScheme } = useThemeContext();
+  const colors = Colors[colorScheme ?? 'light'];
   
   const [severity, setSeverity] = useState(0);
   const [symptoms, setSymptoms] = useState('');
@@ -63,11 +67,11 @@ export default function LogAllergyModalScreen() {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-      <Text style={styles.title}>Daily Allergy Log</Text>
+    <ScrollView contentContainerStyle={[styles.container, { backgroundColor: colors.background }]} keyboardShouldPersistTaps="handled">
+      <Text style={[styles.title, { color: colors.text }]}>Daily Allergy Log</Text>
 
       <View style={styles.inputContainer}>
-        <Text style={styles.label}>Severity Level</Text>
+        <Text style={[styles.label, { color: colors.text }]}>Severity Level</Text>
         <View style={styles.severityGrid}>
           {SEVERITY_LEVELS.map(item => {
             const isSelected = severity === item.level;
@@ -76,23 +80,24 @@ export default function LogAllergyModalScreen() {
                 key={item.level} 
                 style={[
                   styles.severityCard, 
+                  { backgroundColor: colors.highlight, borderColor: colors.border },
                   isSelected && { borderColor: item.color, backgroundColor: `${item.color}15` }
                 ]}
                 onPress={() => setSeverity(item.level)}
               >
                 <View style={[styles.colorDot, { backgroundColor: item.color }]} />
-                <Text style={[styles.severityLabel, isSelected && { color: item.color }]}>{item.label}</Text>
+                <Text style={[styles.severityLabel, { color: colors.mutedText }, isSelected && { color: item.color }]}>{item.label}</Text>
               </TouchableOpacity>
             )
           })}
         </View>
-        <Text style={styles.hintText}>{SEVERITY_LEVELS[severity].description}</Text>
+        <Text style={[styles.hintText, { color: colors.mutedText }]}>{SEVERITY_LEVELS[severity].description}</Text>
       </View>
 
       <View style={styles.inputContainer}>
-        <Text style={styles.label}>Date of Reading</Text>
-        <TouchableOpacity style={styles.dateInput} onPress={() => setShowDatePicker(true)}>
-          <Text style={styles.dateText}>
+        <Text style={[styles.label, { color: colors.text }]}>Date of Reading</Text>
+        <TouchableOpacity style={[styles.dateInput, { backgroundColor: colors.highlight, borderColor: colors.border }]} onPress={() => setShowDatePicker(true)}>
+          <Text style={[styles.dateText, { color: colors.text }]}>
             {date.toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' })}
           </Text>
         </TouchableOpacity>
@@ -110,37 +115,39 @@ export default function LogAllergyModalScreen() {
         )}
         {Platform.OS === 'ios' && showDatePicker && (
            <TouchableOpacity style={styles.doneBtn} onPress={() => setShowDatePicker(false)}>
-             <Text style={styles.doneBtnText}>Done</Text>
+             <Text style={[styles.doneBtnText, { color: colors.tint }]}>Done</Text>
            </TouchableOpacity>
         )}
       </View>
 
       <View style={styles.inputContainer}>
-        <Text style={styles.label}>Specific Symptoms (Optional)</Text>
+        <Text style={[styles.label, { color: colors.text }]}>Specific Symptoms (Optional)</Text>
         <TextInput 
-          style={styles.input} 
+          style={[styles.input, { backgroundColor: colors.highlight, color: colors.text, borderColor: colors.border }]} 
           placeholder="e.g. Itchy paws, ear scratching" 
+          placeholderTextColor={colors.mutedText}
           value={symptoms} 
           onChangeText={setSymptoms} 
         />
       </View>
 
       <View style={styles.inputContainer}>
-        <Text style={styles.label}>Treatment or Notes (Optional)</Text>
+        <Text style={[styles.label, { color: colors.text }]}>Treatment or Notes (Optional)</Text>
         <TextInput 
-          style={styles.input} 
+          style={[styles.input, { backgroundColor: colors.highlight, color: colors.text, borderColor: colors.border }]} 
           placeholder="e.g. Gave Apoquel pill" 
+          placeholderTextColor={colors.mutedText}
           value={notes} 
           onChangeText={setNotes} 
         />
       </View>
 
       <TouchableOpacity 
-        style={[styles.button, loading && styles.buttonDisabled]} 
+        style={[styles.button, { backgroundColor: colors.text }, loading && styles.buttonDisabled]} 
         onPress={handleSaveAllergy}
         disabled={loading}
       >
-        <Text style={styles.buttonText}>
+        <Text style={[styles.buttonText, { color: colors.background }]}>
           {loading ? 'Logging...' : 'Save Reading'}
         </Text>
       </TouchableOpacity>

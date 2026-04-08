@@ -6,10 +6,14 @@ import { useAuth } from '../contexts/AuthContext';
 import { useRouter } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { FontAwesome5 } from '@expo/vector-icons';
+import { useThemeContext } from '../contexts/ThemeContext';
+import Colors from '../constants/Colors';
 
 export default function QuickTaskModalScreen() {
   const router = useRouter();
   const { session } = useAuth();
+  const { colorScheme } = useThemeContext();
+  const colors = Colors[colorScheme ?? 'light'];
   
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('Misc'); // 'Grooming', 'Medical', 'Misc'
@@ -75,22 +79,22 @@ export default function QuickTaskModalScreen() {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-      <Text style={styles.title}>New Quick Task</Text>
+    <ScrollView contentContainerStyle={[styles.container, { backgroundColor: colors.background }]} keyboardShouldPersistTaps="handled">
+      <Text style={[styles.title, { color: colors.text }]}>New Quick Task</Text>
 
       {/* Pet Selector (Optional) */}
       {pets.length > 0 && (
         <View style={styles.inputContainer}>
-          <Text style={styles.label}>Who is this for? (Optional)</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Who is this for? (Optional)</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.petSelector}>
              <TouchableOpacity 
                style={[styles.petBubble, !selectedPet && styles.petBubbleActive]}
                onPress={() => setSelectedPet(null)}
              >
-                <View style={styles.fallbackAvatar}>
-                   <FontAwesome5 name="home" size={16} color={!selectedPet ? '#007AFF' : '#999'} />
+                <View style={[styles.fallbackAvatar, { backgroundColor: colors.pillPrimary }]}>
+                   <FontAwesome5 name="home" size={16} color={!selectedPet ? colors.tint : colors.mutedText} />
                 </View>
-                <Text style={styles.petBubbleText}>House</Text>
+                <Text style={[styles.petBubbleText, { color: colors.text }]}>House</Text>
              </TouchableOpacity>
 
              {pets.map(pet => (
@@ -102,11 +106,11 @@ export default function QuickTaskModalScreen() {
                   {pet.avatar_url ? (
                     <Image source={{ uri: pet.avatar_url }} style={styles.petAvatar} />
                   ) : (
-                    <View style={styles.fallbackAvatar}>
-                       <FontAwesome5 name="paw" size={16} color={selectedPet === pet.id ? '#007AFF' : '#999'} />
+                    <View style={[styles.fallbackAvatar, { backgroundColor: colors.pillPrimary }]}>
+                       <FontAwesome5 name="paw" size={16} color={selectedPet === pet.id ? colors.tint : colors.mutedText} />
                     </View>
                   )}
-                  <Text style={styles.petBubbleText} numberOfLines={1}>{pet.name}</Text>
+                  <Text style={[styles.petBubbleText, { color: colors.text }]} numberOfLines={1}>{pet.name}</Text>
                 </TouchableOpacity>
              ))}
           </ScrollView>
@@ -115,30 +119,30 @@ export default function QuickTaskModalScreen() {
 
       {/* Category Pills */}
       <View style={styles.inputContainer}>
-        <Text style={styles.label}>Category</Text>
+        <Text style={[styles.label, { color: colors.text }]}>Category</Text>
         <View style={styles.categoryRow}>
             {['Misc', 'Grooming', 'Medical'].map(cat => (
                <TouchableOpacity 
                  key={cat} 
-                 style={[styles.catPill, category === cat && styles.catPillActive]}
+                 style={[styles.catPill, { backgroundColor: colors.pillPrimary }, category === cat && { backgroundColor: colors.text }]}
                  onPress={() => setCategory(cat)}
                >
-                 <Text style={[styles.catPillText, category === cat && styles.catPillTextActive]}>{cat}</Text>
+                 <Text style={[styles.catPillText, { color: colors.mutedText }, category === cat && { color: colors.background }]}>{cat}</Text>
                </TouchableOpacity>
             ))}
         </View>
       </View>
 
       <View style={styles.inputContainer}>
-        <Text style={styles.label}>Frequency</Text>
+        <Text style={[styles.label, { color: colors.text }]}>Frequency</Text>
         <View style={styles.categoryRow}>
             {['none', 'daily', 'weekly', 'monthly'].map(rec => (
                <TouchableOpacity 
                  key={rec} 
-                 style={[styles.catPill, recurrence === rec && styles.catPillActive]}
+                 style={[styles.catPill, { backgroundColor: colors.pillPrimary }, recurrence === rec && { backgroundColor: colors.text }]}
                  onPress={() => setRecurrence(rec)}
                >
-                 <Text style={[styles.catPillText, recurrence === rec && styles.catPillTextActive]}>
+                 <Text style={[styles.catPillText, { color: colors.mutedText }, recurrence === rec && { color: colors.background }]}>
                    {rec.charAt(0).toUpperCase() + rec.slice(1)}
                  </Text>
                </TouchableOpacity>
@@ -147,10 +151,11 @@ export default function QuickTaskModalScreen() {
       </View>
 
       <View style={styles.inputContainer}>
-        <Text style={styles.label}>Task Description</Text>
+        <Text style={[styles.label, { color: colors.text }]}>Task Description</Text>
         <TextInput 
-          style={styles.input} 
+          style={[styles.input, { backgroundColor: colors.highlight, color: colors.text, borderColor: colors.border }]} 
           placeholder="e.g. Vet Appointment, Buy Kibble, Bath Day" 
+          placeholderTextColor={colors.mutedText}
           value={title} 
           onChangeText={setTitle} 
         />
@@ -158,18 +163,18 @@ export default function QuickTaskModalScreen() {
 
       <View style={styles.timeRow}>
         <View style={[styles.inputContainer, { flex: 1, marginRight: 8 }]}>
-          <Text style={styles.label}>Date</Text>
-          <TouchableOpacity style={styles.dateInput} onPress={() => setShowDatePicker(true)}>
-            <Text style={styles.dateText}>
+          <Text style={[styles.label, { color: colors.text }]}>Date</Text>
+          <TouchableOpacity style={[styles.dateInput, { backgroundColor: colors.highlight, borderColor: colors.border }]} onPress={() => setShowDatePicker(true)}>
+            <Text style={[styles.dateText, { color: colors.text }]}>
               {datetime.toLocaleDateString([], { month: 'short', day: 'numeric' })}
             </Text>
           </TouchableOpacity>
         </View>
 
         <View style={[styles.inputContainer, { flex: 1, marginLeft: 8 }]}>
-          <Text style={styles.label}>Time</Text>
-          <TouchableOpacity style={styles.dateInput} onPress={() => setShowTimePicker(true)}>
-            <Text style={styles.dateText}>
+          <Text style={[styles.label, { color: colors.text }]}>Time</Text>
+          <TouchableOpacity style={[styles.dateInput, { backgroundColor: colors.highlight, borderColor: colors.border }]} onPress={() => setShowTimePicker(true)}>
+            <Text style={[styles.dateText, { color: colors.text }]}>
               {datetime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </Text>
           </TouchableOpacity>
@@ -190,7 +195,7 @@ export default function QuickTaskModalScreen() {
       )}
       {Platform.OS === 'ios' && showDatePicker && (
          <TouchableOpacity style={styles.doneBtn} onPress={() => setShowDatePicker(false)}>
-           <Text style={styles.doneBtnText}>Done Date</Text>
+           <Text style={[styles.doneBtnText, { color: colors.tint }]}>Done Date</Text>
          </TouchableOpacity>
       )}
 
@@ -207,17 +212,17 @@ export default function QuickTaskModalScreen() {
       )}
       {Platform.OS === 'ios' && showTimePicker && (
          <TouchableOpacity style={styles.doneBtn} onPress={() => setShowTimePicker(false)}>
-           <Text style={styles.doneBtnText}>Done Time</Text>
+           <Text style={[styles.doneBtnText, { color: colors.tint }]}>Done Time</Text>
          </TouchableOpacity>
       )}
 
 
       <TouchableOpacity 
-        style={[styles.button, loading && styles.buttonDisabled]} 
+        style={[styles.button, { backgroundColor: colors.text }, loading && styles.buttonDisabled]} 
         onPress={handleSaveTask}
         disabled={loading}
       >
-        <Text style={styles.buttonText}>
+        <Text style={[styles.buttonText, { color: colors.background }]}>
           {loading ? 'Committing...' : 'Add Quick Task'}
         </Text>
       </TouchableOpacity>

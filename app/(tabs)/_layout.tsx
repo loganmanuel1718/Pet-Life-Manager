@@ -4,8 +4,8 @@ import { Link, Tabs } from 'expo-router';
 import { Pressable } from 'react-native';
 
 import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
 import { useClientOnlyValue } from '@/components/useClientOnlyValue';
+import { useThemeContext } from '../../contexts/ThemeContext';
 
 // You can explore the built-in icon families and icons on the web at https://icons.expo.fyi/
 function TabBarIcon(props: {
@@ -16,13 +16,14 @@ function TabBarIcon(props: {
 }
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
+  const { colorScheme } = useThemeContext();
+  const colors = Colors[colorScheme ?? 'light'];
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#000',
-        tabBarInactiveTintColor: '#C7C7CC',
+        tabBarActiveTintColor: colors.text,
+        tabBarInactiveTintColor: colors.mutedText,
         tabBarShowLabel: false,
         headerShown: useClientOnlyValue(false, true),
         tabBarStyle: {
@@ -31,12 +32,12 @@ export default function TabLayout() {
           left: 40,
           right: 40, // restricts width creating a pill
           elevation: 0,
-          backgroundColor: '#ffffff',
+          backgroundColor: colors.surface,
           borderRadius: 40,
           height: 70, // taller touch target
-          shadowColor: '#000',
+          shadowColor: colorScheme === 'dark' ? '#fff' : '#000',
           shadowOffset: { width: 0, height: 10 },
-          shadowOpacity: 0.08,
+          shadowOpacity: colorScheme === 'dark' ? 0.04 : 0.08,
           shadowRadius: 20,
           borderTopWidth: 0, // removes standard rn border
           alignItems: 'center',
