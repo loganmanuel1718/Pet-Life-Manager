@@ -104,6 +104,48 @@ export default function PetHealthScreen() {
   const maxRenderWeight = absoluteMax * 1.15; 
   const displayLogs = weightLogs.slice(-8); 
 
+  // -- ADVANCED HEALTH PROJECTIONS ENGINE -- //
+  let weightTrend = "Awaiting sufficient data...";
+  let weightIcon = "minus";
+  let weightIconColor = colors.mutedText;
+
+  if (displayLogs.length > 1) {
+     const earliest = displayLogs[0].weight;
+     const latest = displayLogs[displayLogs.length - 1].weight;
+     const delta = latest - earliest;
+     const pct = earliest > 0 ? ((delta / earliest) * 100).toFixed(1) : 0;
+     
+     if (delta > 0.5) {
+       weightTrend = `Trending up (+${pct}%)`;
+       weightIcon = "arrow-up";
+       weightIconColor = "#FF9500";
+     } else if (delta < -0.5) {
+       weightTrend = `Trending down (${pct}%)`;
+       weightIcon = "arrow-down";
+       weightIconColor = "#34C759";
+     } else {
+       weightTrend = `Stable body weight`;
+       weightIcon = "check";
+       weightIconColor = "#34C759";
+     }
+  }
+
+  let allergyTrend = "Awaiting episodes...";
+  if (allergyLogs.length > 1) {
+     const newestDate = new Date(allergyLogs[0].date).getTime();
+     const oldestDate = new Date(allergyLogs[allergyLogs.length - 1].date).getTime();
+     const spanDays = (newestDate - oldestDate) / (1000 * 3600 * 24);
+     
+     if (spanDays > 0) {
+        const mtbiDays = spanDays / (allergyLogs.length - 1);
+        if (mtbiDays < 7) {
+           allergyTrend = `High frequency (every ${Math.round(mtbiDays)} days)`;
+        } else {
+           allergyTrend = `1 episode ~every ${(mtbiDays / 7).toFixed(1)} wks`;
+        }
+     }
+  }
+
   return (
     <>
       <Stack.Screen 
@@ -114,6 +156,38 @@ export default function PetHealthScreen() {
       />
       <ScrollView contentContainerStyle={[styles.container, { backgroundColor: colors.background }]}>
         
+        {/* AUTOMATED INSIGHTS */}
+        <Animated.View entering={FadeInUp.delay(50).springify()} style={[styles.insightCard, { backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#111', shadowColor: colorScheme === 'dark' ? '#fff' : '#000' }]}>
+           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+             <FontAwesome5 name="robot" size={16} color="#007AFF" />
+             <Text style={styles.insightTitle}>PET LIFE INSIGHTS</Text>
+           </View>
+           
+           <View style={styles.insightRow}>
+             <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+               <View style={[styles.insightIconCircle, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
+                 <FontAwesome5 name={weightIcon} size={14} color={weightIconColor} />
+               </View>
+               <View>
+                 <Text style={styles.insightLabel}>Weight Trajectory</Text>
+                 <Text style={styles.insightValue}>{weightTrend}</Text>
+               </View>
+             </View>
+           </View>
+
+           <View style={[styles.insightRow, { borderBottomWidth: 0, marginTop: 12, paddingBottom: 0 }]}>
+             <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+               <View style={[styles.insightIconCircle, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
+                 <FontAwesome5 name="allergies" size={14} color="#9C51E0" />
+               </View>
+               <View>
+                 <Text style={styles.insightLabel}>Reaction Frequency</Text>
+                 <Text style={styles.insightValue}>{allergyTrend}</Text>
+               </View>
+             </View>
+           </View>
+        </Animated.View>
+
         {/* WEIGHT ENGINE */}
         <Text style={[styles.title, { color: colors.text }]}>Weight Tracking</Text>
         <View style={[styles.card, { backgroundColor: colors.surface, shadowColor: colorScheme === 'dark' ? '#fff' : '#000' }]}>
@@ -303,6 +377,50 @@ const styles = StyleSheet.create({
     color: '#111',
     letterSpacing: -0.5,
     marginBottom: 20,
+    marginTop: 20,
+  },
+  insightCard: {
+    padding: 20,
+    borderRadius: 24,
+    marginBottom: 8,
+    elevation: 4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 15,
+  },
+  insightTitle: {
+    color: '#007AFF',
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 1.5,
+    marginLeft: 8,
+  },
+  insightRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+  },
+  insightIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  insightLabel: {
+    color: '#999',
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  insightValue: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
   },
   card: {
     backgroundColor: '#fff',
