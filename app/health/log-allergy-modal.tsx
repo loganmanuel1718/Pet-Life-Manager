@@ -38,7 +38,7 @@ export default function LogAllergyModalScreen() {
       
       setLoading(true);
 
-      const dateString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+      const dateString = date.toISOString();
 
       const payload = {
         pet_id,
@@ -49,9 +49,7 @@ export default function LogAllergyModalScreen() {
         date: dateString
       };
 
-      // Upsert: If a log already exists for this pet on this specific date, it will cleanly overwrite it,
-      // guaranteeing exactly 1 average record per day as requested!
-      const { error } = await supabase.from('pet_allergy_logs').upsert([payload], { onConflict: 'pet_id, date' });
+      const { error } = await supabase.from('pet_allergy_logs').insert([payload]);
 
       setLoading(false);
 
