@@ -7,6 +7,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { useThemeContext } from '../../contexts/ThemeContext';
 import Colors from '../../constants/Colors';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 
 export default function PetDetailScreen() {
   const { id } = useLocalSearchParams();
@@ -163,7 +164,7 @@ export default function PetDetailScreen() {
           )}
         </View>
 
-        <View style={[styles.card, { backgroundColor: colors.surface, shadowColor: colorScheme === 'dark' ? '#fff' : '#000' }]}>
+        <Animated.View entering={FadeInDown.delay(100).springify()} style={[styles.card, { backgroundColor: colors.surface, shadowColor: colorScheme === 'dark' ? '#fff' : '#000' }]}>
           <Text style={[styles.name, { color: colors.text }]}>{pet.name}</Text>
           <Text style={[styles.speciesInfo, { color: colors.mutedText }]}>
             {pet.species || 'Unknown Species'} {pet.breed ? `• ${pet.breed}` : ''}
@@ -215,9 +216,9 @@ export default function PetDetailScreen() {
             <Text style={[styles.label, { color: colors.text }]}>Notes</Text>
             <Text style={[styles.value, { color: colors.mutedText }]}>{pet.notes || 'No extra notes'}</Text>
           </View>
-        </View>
+        </Animated.View>
 
-        <View style={[styles.card, { backgroundColor: colors.surface, shadowColor: colorScheme === 'dark' ? '#fff' : '#000' }]}>
+        <Animated.View entering={FadeInDown.delay(200).springify()} style={[styles.card, { backgroundColor: colors.surface, shadowColor: colorScheme === 'dark' ? '#fff' : '#000' }]}>
           <View style={[styles.infoRow, { alignItems: 'center' }]}>
             <Text style={[styles.title, { marginBottom: 0, color: colors.text }]}>Feeding Schedules</Text>
             <TouchableOpacity onPress={() => router.push(`/feeding-modal?pet_id=${pet.id}`)}>
@@ -243,10 +244,10 @@ export default function PetDetailScreen() {
           ) : (
             <Text style={[styles.value, { color: colors.mutedText }]}>No schedules set yet.</Text>
           )}
-        </View>
+        </Animated.View>
 
         {/* Medicine Schedules Block */}
-        <View style={[styles.card, { backgroundColor: colors.surface, shadowColor: colorScheme === 'dark' ? '#fff' : '#000' }]}>
+        <Animated.View entering={FadeInDown.delay(300).springify()} style={[styles.card, { backgroundColor: colors.surface, shadowColor: colorScheme === 'dark' ? '#fff' : '#000' }]}>
           <View style={[styles.infoRow, { alignItems: 'center' }]}>
             <Text style={[styles.title, { marginBottom: 0, color: colors.text }]}>Medications</Text>
             <TouchableOpacity onPress={() => router.push(`/medicine-modal?pet_id=${pet.id}`)}>
@@ -277,10 +278,10 @@ export default function PetDetailScreen() {
           ) : (
             <Text style={[styles.value, { color: colors.mutedText }]}>No medicines scheduled.</Text>
           )}
-        </View>
+        </Animated.View>
 
         {/* GROOMING SCHEDULES */}
-        <View style={[styles.card, { backgroundColor: colors.surface, shadowColor: colorScheme === 'dark' ? '#fff' : '#000' }]}>
+        <Animated.View entering={FadeInDown.delay(400).springify()} style={[styles.card, { backgroundColor: colors.surface, shadowColor: colorScheme === 'dark' ? '#fff' : '#000' }]}>
           <Text style={[styles.title, { color: colors.text }]}>Daily Grooming</Text>
           
           {pet.grooming_schedules && pet.grooming_schedules.length > 0 ? (
@@ -309,7 +310,7 @@ export default function PetDetailScreen() {
               <Text style={[styles.addText, { color: colors.tint }]}>+ Add Routine</Text>
             </TouchableOpacity>
           </Link>
-        </View>
+        </Animated.View>
 
         <View style={styles.buttonContainer}>
           <TouchableOpacity 

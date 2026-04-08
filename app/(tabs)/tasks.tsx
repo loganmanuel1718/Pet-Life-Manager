@@ -7,6 +7,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { useThemeContext } from '../../contexts/ThemeContext';
 import Colors from '../../constants/Colors';
+import Animated, { LinearTransition, FadeInUp, FadeOutDown } from 'react-native-reanimated';
 
 export default function TasksTab() {
   const { session } = useAuth();
@@ -16,6 +17,11 @@ export default function TasksTab() {
   const [tasks, setTasks] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
+
+  const toggleSection = (section: string) => {
+    setCollapsedSections(prev => ({ ...prev, [section]: !prev[section] }));
+  };
 
   // Create a 30-day rolling window around today
   const [dateWindow] = useState(() => Array.from({ length: 31 }, (_, i) => {
@@ -285,16 +291,21 @@ export default function TasksTab() {
                 if (block === 'Evening') { iconName = 'moon'; iconColor = '#5856D6'; }
 
                 return (
-                  <View key={block} style={styles.mealSection}>
-                    <View style={[styles.sectionPill, { backgroundColor: colors.surface, shadowColor: colorScheme === 'dark' ? '#fff' : '#000' }]}>
-                      <FontAwesome5 name={iconName} size={14} color={iconColor} />
-                      <Text style={[styles.sectionPillText, { color: colors.text }]}>{block.toUpperCase()} ({Object.values(blockTasks).flat().length})</Text>
-                    </View>
+                  <Animated.View key={block} layout={LinearTransition.springify()} style={styles.mealSection}>
+                    <TouchableOpacity onPress={() => toggleSection(block)}>
+                      <View style={[styles.sectionPill, { backgroundColor: colors.surface, shadowColor: colorScheme === 'dark' ? '#fff' : '#000' }]}>
+                        <FontAwesome5 name={iconName} size={14} color={iconColor} />
+                        <Text style={[styles.sectionPillText, { color: colors.text }]}>{block.toUpperCase()} ({Object.values(blockTasks).flat().length})</Text>
+                        <FontAwesome5 name={collapsedSections[block] ? "chevron-right" : "chevron-down"} size={12} color={colors.mutedText} style={{ marginLeft: 12, marginTop: 1 }} />
+                      </View>
+                    </TouchableOpacity>
 
-                    {petNames.map(petName => (
-                      <View key={petName} style={styles.petGroup}>
+                    {!collapsedSections[block] && (
+                      <Animated.View exiting={FadeOutDown.springify()} entering={FadeInUp.springify()}>
+                        {petNames.map(petName => (
+                          <View key={petName} style={styles.petGroup}>
 
-                        <View style={styles.petGroupHeader}>
+                            <View style={styles.petGroupHeader}>
                           {blockTasks[petName][0]?.pets?.avatar_url ? (
                             <Image source={{ uri: blockTasks[petName][0].pets.avatar_url }} style={styles.miniAvatarPetGroup} />
                           ) : (
@@ -339,10 +350,12 @@ export default function TasksTab() {
                         })}
                       </View>
                     ))}
-                  </View>
-                );
-              })
-            )}
+                  </Animated.View>
+                )}
+              </Animated.View>
+            );
+          })
+        )}
 
             {/* COMPLETED TASKS SECTION */}
             {completedTasks.length > 0 && (

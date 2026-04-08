@@ -7,6 +7,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { useThemeContext } from '../../contexts/ThemeContext';
 import Colors from '../../constants/Colors';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 
 type Pet = {
   id: string;
@@ -74,9 +75,10 @@ export default function PetDashboard() {
               <Text style={[styles.emptyText, { color: colors.text }]}>You haven't added any pets yet.</Text>
             </View>
           ) : (
-            pets.map(item => (
-              <TouchableOpacity key={item.id} onPress={() => router.push(`/pet/${item.id}`)}>
-                <View style={[styles.petCard, { backgroundColor: colors.surface, shadowColor: colorScheme === 'dark' ? '#fff' : '#000' }]}>
+            pets.map((item, index) => (
+              <Animated.View key={item.id} entering={FadeInDown.delay(100 * index).springify()}>
+                <TouchableOpacity onPress={() => router.push(`/pet/${item.id}`)}>
+                  <View style={[styles.petCard, { backgroundColor: colors.surface, shadowColor: colorScheme === 'dark' ? '#fff' : '#000' }]}>
                   {item.avatar_url ? (
                     <Image source={{ uri: item.avatar_url }} style={styles.petAvatar} />
                   ) : (
@@ -92,6 +94,7 @@ export default function PetDashboard() {
                   </View>
                 </View>
               </TouchableOpacity>
+            </Animated.View>
             ))
           )}
         </View>

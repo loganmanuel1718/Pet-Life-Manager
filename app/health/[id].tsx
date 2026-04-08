@@ -7,6 +7,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { useThemeContext } from '../../contexts/ThemeContext';
 import Colors from '../../constants/Colors';
+import Animated, { FadeInUp } from 'react-native-reanimated';
 
 const SEVERITY_LEVELS = [
   { level: 0, label: 'None', color: '#34C759' }, // Green
@@ -137,7 +138,7 @@ export default function PetHealthScreen() {
                   const dateObj = new Date(log.date);
                   
                   return (
-                    <View key={log.id} style={styles.chartColumn}>
+                    <Animated.View key={log.id} style={styles.chartColumn} entering={FadeInUp.delay(50 * index).springify()}>
                       <View style={styles.chartBarWrapper}>
                         <View style={[
                           styles.chartBar, 
@@ -151,7 +152,7 @@ export default function PetHealthScreen() {
                       <Text style={[styles.chartWeightLabel, { color: colors.mutedText }, isLatest && { color: colors.tint }]}>
                          {log.weight}
                       </Text>
-                    </View>
+                    </Animated.View>
                   );
                 })}
               </View>
@@ -222,7 +223,7 @@ export default function PetHealthScreen() {
                   const dateObj = new Date(log.date);
 
                   return (
-                    <View key={`chart-${log.id}`} style={styles.chartColumn}>
+                    <Animated.View key={`chart-${log.id}`} style={styles.chartColumn} entering={FadeInUp.delay(50 * index).springify()}>
                       <View style={styles.chartBarWrapper}>
                         <View style={[
                           styles.chartBar, 
@@ -232,7 +233,7 @@ export default function PetHealthScreen() {
                       <Text style={[styles.chartDateLabel, { color: colors.mutedText }, isLatest && { color: colors.text }]}>
                          {dateObj.getMonth() + 1}/{dateObj.getDate()}
                       </Text>
-                    </View>
+                    </Animated.View>
                   );
                 })}
               </View>
