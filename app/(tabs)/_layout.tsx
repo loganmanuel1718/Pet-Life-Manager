@@ -29,8 +29,8 @@ export default function TabLayout() {
         tabBarStyle: {
           position: 'absolute',
           bottom: 30, // floats off the bottom edge
-          left: 20,
-          right: 20, // restricts width creating a pill
+          left: 40,
+          right: 40, // restricts width creating a pill
           elevation: 0,
           backgroundColor: colors.surface,
           borderRadius: 40,
@@ -65,11 +65,11 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="finance"
+        name="assistant"
         options={{
-          title: 'Wallet',
+          title: 'Assistant',
           headerShown: false,
-          tabBarIcon: ({ color }) => <TabBarIcon name="pie-chart" color={color} />,
+          tabBarIcon: ({ color }) => <TabBarIcon name="commenting-o" color={color} />,
         }}
       />
       <Tabs.Screen

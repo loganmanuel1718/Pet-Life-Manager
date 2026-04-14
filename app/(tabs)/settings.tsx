@@ -17,8 +17,10 @@ export default function SettingsTab() {
   
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<any>(null);
+  const [displayName, setDisplayName] = useState('');
   const [joinCode, setJoinCode] = useState('');
   const [isJoining, setIsJoining] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
 
   const fetchOrGenerateProfile = async () => {
     if (!session?.user?.id) return;
@@ -43,7 +45,25 @@ export default function SettingsTab() {
     }
 
     setProfile(data);
+    if (data?.display_name) setDisplayName(data.display_name);
     setLoading(false);
+  };
+
+  const handleUpdateProfile = async () => {
+    if (!session?.user?.id) return;
+    setIsSavingProfile(true);
+    const { error } = await supabase
+      .from('profiles')
+      .update({ display_name: displayName.trim() })
+      .eq('user_id', session.user.id);
+      
+    setIsSavingProfile(false);
+    if (error) {
+      Alert.alert('Error', error.message);
+    } else {
+      Alert.alert('Success', 'Profile updated!');
+      fetchOrGenerateProfile();
+    }
   };
 
   useFocusEffect(useCallback(() => { fetchOrGenerateProfile(); }, [session]));
@@ -84,6 +104,45 @@ export default function SettingsTab() {
          setIsJoining(false);
          Alert.alert('Not Found', 'No household exists with this invite code. Please double-check it.');
          return;
+      }
+
+      // --- PET DEDUPLICATION LOGIC ---
+      // 1. Fetch current user's pets
+      const { data: myPets } = await supabase.from('pets').select('*').eq('user_id', session!.user.id);
+      
+      // 2. Fetch target household's pets
+      const { data: householdMembers } = await supabase
+        .from('profiles')
+        .select('user_id')
+        .eq('household_id', targetProfile.household_id);
+        
+      const memberIds = householdMembers?.map(m => m.user_id) || [];
+
+      const { data: householdPets } = await supabase
+        .from('pets')
+        .select('*')
+        .in('user_id', memberIds);
+
+      if (myPets && householdPets) {
+        for (const myPet of myPets) {
+          const match = householdPets.find(hp => hp.name.toLowerCase().trim() === myPet.name.toLowerCase().trim());
+          if (match) {
+            // Found a duplicate pet name! Re-link all child data to the target pet ID
+            const relatedTables = [
+              'feeding_schedules', 'feeding_logs',
+              'medicine_schedules', 'medicine_logs',
+              'grooming_schedules', 'grooming_logs',
+              'quick_tasks', 'pet_weight_logs', 'pet_allergy_logs'
+            ];
+
+            for (const table of relatedTables) {
+              await supabase.from(table).update({ pet_id: match.id }).eq('pet_id', myPet.id);
+            }
+            
+            // Delete the redundant local pet record
+            await supabase.from('pets').delete().eq('id', myPet.id);
+          }
+        }
       }
 
       // Update current user's household_id to match the target's household_id
@@ -150,6 +209,35 @@ export default function SettingsTab() {
   return (
     <ScrollView contentContainerStyle={[styles.container, { backgroundColor: colors.background }]} keyboardShouldPersistTaps="handled">
       <Text style={[styles.title, { color: colors.text }]}>Settings</Text>
+
+      {/* Profile Section */}
+      <View style={[styles.card, { backgroundColor: colors.surface, shadowColor: colorScheme === 'dark' ? '#fff' : '#000' }]}>
+         <View style={styles.headerBlock}>
+            <View style={[styles.iconCircle, { backgroundColor: colors.pillPrimary }]}>
+               <FontAwesome5 name="user-alt" size={20} color={colors.tint} />
+            </View>
+            <Text style={[styles.cardTitle, { color: colors.text }]}>My Profile</Text>
+         </View>
+         <Text style={styles.cardDesc}>
+            Set your display name so your household members know who is completing tasks.
+         </Text>
+
+         <TextInput 
+            style={[styles.input, { backgroundColor: colors.highlight, borderColor: colors.border, color: colors.text, marginBottom: 16 }]} 
+            placeholder="Your Name" 
+            placeholderTextColor={colors.mutedText}
+            value={displayName} 
+            onChangeText={setDisplayName} 
+         />
+
+         <TouchableOpacity 
+            style={[styles.joinButton, { backgroundColor: colors.tint, opacity: isSavingProfile ? 0.7 : 1 }]} 
+            onPress={handleUpdateProfile}
+            disabled={isSavingProfile}
+         >
+            {isSavingProfile ? <ActivityIndicator color="#fff" /> : <Text style={styles.joinButtonText}>Save Details</Text>}
+         </TouchableOpacity>
+      </View>
 
       {/* Theme Toggle Module */}
       <View style={[styles.card, { backgroundColor: colors.surface, shadowColor: colorScheme === 'dark' ? '#fff' : '#000' }]}>

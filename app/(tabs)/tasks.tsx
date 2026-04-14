@@ -43,37 +43,51 @@ export default function TasksTab() {
     }, 100);
   }, []);
 
-  const fetchTasks = async () => {
+  const fetchTasks = async (fromRealtime = false) => {
     if (!session?.user?.id) return;
+
+    // Small delay for realtime events to prevent race conditions (Postgres eventual consistency)
+    if (fromRealtime) {
+      await new Promise(r => setTimeout(r, 150));
+    }
 
     // Use selectedDate for all logic!
     const localDateString = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`;
 
     // Parallel Sub-Queries
     const { data: feedingSched } = await supabase.from('feeding_schedules').select('*, pets(name, avatar_url)');
-    const { data: feedingLogs } = await supabase.from('feeding_logs').select('*').eq('date', localDateString);
+    const { data: feedingLogs } = await supabase.from('feeding_logs').select('*, profiles(display_name)').eq('date', localDateString);
 
     const { data: medicineSched } = await supabase.from('medicine_schedules').select('*, pets(name, avatar_url)');
-    const { data: medicineLogs } = await supabase.from('medicine_logs').select('*').eq('date', localDateString);
+    const { data: medicineLogs } = await supabase.from('medicine_logs').select('*, profiles(display_name)').eq('date', localDateString);
 
     const { data: groomingSched } = await supabase.from('grooming_schedules').select('*, pets(name, avatar_url)');
-    const { data: groomingLogs } = await supabase.from('grooming_logs').select('*').eq('date', localDateString);
+    const { data: groomingLogs } = await supabase.from('grooming_logs').select('*, profiles(display_name)').eq('date', localDateString);
 
     const { data: rawQuickTasks } = await supabase
       .from('quick_tasks')
-      .select('*, pets(name, avatar_url)')
+      .select('*, pets(name, avatar_url), profiles!completed_by_id(display_name)')
       .or(`due_date.eq.${localDateString},recurrence.neq.none`);
 
-    const { data: quickLogs } = await supabase.from('quick_task_logs').select('*').eq('date', localDateString);
+    const { data: quickLogs } = await supabase.from('quick_task_logs').select('*, profiles(display_name)').eq('date', localDateString);
 
     let combinedTasks: any[] = [];
 
     // Map Food
-    if (feedingSched) combinedTasks = combinedTasks.concat(feedingSched.map((s: any) => ({ ...s, taskType: 'Food', is_completed: feedingLogs?.some((l: any) => l.schedule_id === s.id) || false })));
+    if (feedingSched) combinedTasks = combinedTasks.concat(feedingSched.map((s: any) => {
+      const log = feedingLogs?.find((l: any) => l.schedule_id === s.id);
+      return { ...s, taskType: 'Food', is_completed: !!log, completed_by: log?.profiles?.display_name || (log ? 'Someone' : null) };
+    }));
     // Map Medicine
-    if (medicineSched) combinedTasks = combinedTasks.concat(medicineSched.map((s: any) => ({ ...s, taskType: 'Medicine', is_completed: medicineLogs?.some((l: any) => l.schedule_id === s.id) || false })));
+    if (medicineSched) combinedTasks = combinedTasks.concat(medicineSched.map((s: any) => {
+      const log = medicineLogs?.find((l: any) => l.schedule_id === s.id);
+      return { ...s, taskType: 'Medicine', is_completed: !!log, completed_by: log?.profiles?.display_name || (log ? 'Someone' : null) };
+    }));
     // Map Grooming
-    if (groomingSched) combinedTasks = combinedTasks.concat(groomingSched.map((s: any) => ({ ...s, taskType: 'Grooming', is_completed: groomingLogs?.some((l: any) => l.schedule_id === s.id) || false })));
+    if (groomingSched) combinedTasks = combinedTasks.concat(groomingSched.map((s: any) => {
+      const log = groomingLogs?.find((l: any) => l.schedule_id === s.id);
+      return { ...s, taskType: 'Grooming', is_completed: !!log, completed_by: log?.profiles?.display_name || (log ? 'Someone' : null) };
+    }));
 
     // Map Quick Tasks
     if (rawQuickTasks) {
@@ -90,9 +104,10 @@ export default function TasksTab() {
         return false;
       }).map((t: any) => {
         if (t.recurrence === 'none' || !t.recurrence) {
-          return { ...t, time: t.due_time, taskType: 'QuickTask', is_completed: t.is_completed };
+          return { ...t, time: t.due_time, taskType: 'QuickTask', is_completed: t.is_completed, completed_by: t.profiles?.display_name || (t.is_completed ? 'Someone' : null) };
         } else {
-          return { ...t, time: t.due_time, taskType: 'QuickTask', is_completed: quickLogs?.some((l: any) => l.task_id === t.id) || false };
+          const log = quickLogs?.find((l: any) => l.task_id === t.id);
+          return { ...t, time: t.due_time, taskType: 'QuickTask', is_completed: !!log, completed_by: log?.profiles?.display_name || (log ? 'Someone' : null) };
         }
       });
       combinedTasks = combinedTasks.concat(parsedQuick);
@@ -102,6 +117,44 @@ export default function TasksTab() {
     combinedTasks.sort((a, b) => a.time.localeCompare(b.time));
     setTasks(combinedTasks);
   };
+
+  // REALTIME ENGINE: Listen for changes across the household and sync instantly!
+  useEffect(() => {
+    if (!session?.user?.id) return;
+
+    const channel = supabase
+      .channel('tasks_sync')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'feeding_logs' },
+        () => fetchTasks(true)
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'medicine_logs' },
+        () => fetchTasks(true)
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'grooming_logs' },
+        () => fetchTasks(true)
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'quick_tasks' },
+        () => fetchTasks(true)
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'quick_task_logs' },
+        () => fetchTasks(true)
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [session, selectedDate]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -118,7 +171,7 @@ export default function TasksTab() {
     if (taskType === 'QuickTask') {
       const task = tasks.find(t => t.id === taskId);
       if (task?.recurrence === 'none' || !task?.recurrence) {
-        const { error } = await supabase.from('quick_tasks').update({ is_completed: true }).eq('id', taskId);
+        const { error } = await supabase.from('quick_tasks').update({ is_completed: true, completed_by_id: session.user.id }).eq('id', taskId);
         if (error) { fetchTasks(); console.error(error); }
       } else {
         const localDateString = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`;
@@ -147,7 +200,7 @@ export default function TasksTab() {
     if (taskType === 'QuickTask') {
       const task = tasks.find(t => t.id === taskId);
       if (task?.recurrence === 'none' || !task?.recurrence) {
-        const { error } = await supabase.from('quick_tasks').update({ is_completed: false }).eq('id', taskId);
+        const { error } = await supabase.from('quick_tasks').update({ is_completed: false, completed_by_id: null }).eq('id', taskId);
         if (error) fetchTasks();
       } else {
         const localDateString = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`;
@@ -387,6 +440,12 @@ export default function TasksTab() {
                           {task.taskType === 'Grooming' && task.activity}
                           {task.taskType === 'QuickTask' && `${task.category} • ${task.title}`}
                         </Text>
+                        {task.completed_by && (
+                          <View style={styles.attributionRow}>
+                            <FontAwesome5 name="user-check" size={10} color={colors.text} style={{ opacity: 0.5, marginRight: 4 }} />
+                            <Text style={styles.attributionText}>Done by {task.completed_by}</Text>
+                          </View>
+                        )}
                       </View>
                     </View>
 
@@ -640,6 +699,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#34C759',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  attributionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  attributionText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#8E8E93',
   },
   emptyContainer: {
     alignItems: 'center',
